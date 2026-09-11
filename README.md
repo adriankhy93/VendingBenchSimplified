@@ -205,3 +205,9 @@ focused acceptance tests. Full two-hour model throughput and the approximately
 100,000-token target remain unmeasured. The current calibration is provisional.
 This MVP is for local/test deployment and does not implement authentication,
 persistence, distributed workers, or external logistics.
+
+## Local Qwen with vLLM
+
+Run `/storage/models/Qwen3.5-2B` through the model harness using the
+[launch instructions and diagnostic configuration](docs/qwen-vllm.md).
+Actual diagnostic results are recorded alongside that guide.
