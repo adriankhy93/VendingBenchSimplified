@@ -1,0 +1,12 @@
+[
+ {"id":"p01","name":"Water","reference_price_cents":100,"base_demand":15.0,"elasticity":2.0},
+ {"id":"p02","name":"Cola","reference_price_cents":150,"base_demand":12.0,"elasticity":2.2},
+ {"id":"p03","name":"Sparkling water","reference_price_cents":175,"base_demand":9.0,"elasticity":1.8},
+ {"id":"p04","name":"Orange juice","reference_price_cents":250,"base_demand":8.0,"elasticity":2.0},
+ {"id":"p05","name":"Iced tea","reference_price_cents":200,"base_demand":10.0,"elasticity":2.1},
+ {"id":"p06","name":"Potato chips","reference_price_cents":225,"base_demand":11.0,"elasticity":2.3},
+ {"id":"p07","name":"Chocolate bar","reference_price_cents":180,"base_demand":13.0,"elasticity":2.5},
+ {"id":"p08","name":"Trail mix","reference_price_cents":300,"base_demand":7.0,"elasticity":1.7},
+ {"id":"p09","name":"Protein bar","reference_price_cents":400,"base_demand":6.0,"elasticity":1.5},
+ {"id":"p10","name":"Cold brew","reference_price_cents":500,"base_demand":5.0,"elasticity":1.9}
+]

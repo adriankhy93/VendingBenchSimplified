@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools==80.10.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vending-bench-simplified"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["fastapi==0.136.3", "pydantic==2.13.5", "numpy==2.2.6", "httpx==0.28.1", "uvicorn==0.52.4"]
+
+[project.optional-dependencies]
+test = ["pytest==9.1.1"]
+model = ["anthropic==1.4.0"]
+
+[project.scripts]
+vending-run = "harness.runner:main"
+vending-benchmark = "harness.benchmark:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+[tool.setuptools.package-data]
+vending = ["fixtures/*.json"]
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
