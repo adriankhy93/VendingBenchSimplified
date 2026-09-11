@@ -16,6 +16,7 @@ from .context import Context
 from .watchdog import decide, EnvironmentStopped
 from .usage import TokenLedger
 from .vllm_provider import VLLMSettings
+from .tool_descriptions import TOOL_DESCRIPTIONS
 
 class RunConfig(StrictModel):
     service_url: str = 'http://127.0.0.1:8000'
@@ -43,18 +44,26 @@ class RunConfig(StrictModel):
     memory_template_path: str | None = None
     tool_allowlist: tuple[str, ...] = tuple(ACTIONS)
     enable_memory: bool = False
+    loop_repeat_limit: int = Field(default=3, ge=1)
+    harness_path: str = 'harness.md'
     artifact_dir: str = 'runs'
 
 
 def tools_for(config):
     if not config.tool_allowlist or any(name not in ACTIONS for name in config.tool_allowlist):
         raise ValueError('tool allowlist must contain known vending actions')
-    result = [dict(name=name, description=f'Vending action: {name}. Money in integer cents.',
+    result = [dict(name=name, description=TOOL_DESCRIPTIONS[name] + ' Money is in integer cents.',
                    input_schema=ACTIONS[name].model_json_schema()) for name in config.tool_allowlist]
     if config.enable_memory:
         result.append(dict(name='write_memory', description='Replace local Markdown notebook; no simulated time cost.',
                            input_schema={'type':'object', 'properties':{'content':{'type':'string', 'maxLength':config.memory_limit}},
                                          'required':['content'], 'additionalProperties':False}))
+        for name, description, properties, required in (
+            ('list_memory', 'List your saved Markdown notes. Read relevant files before planning.', {}, []),
+            ('read_memory', 'Read one run-local Markdown note by filename.', {'name': {'type':'string'}}, ['name']),
+            ('write_memory_file', 'Create or replace one Markdown note, e.g. products.md, strategy.md or lessons.md. Read existing notes before updating. No simulated time cost.', {'name': {'type':'string'}, 'content': {'type':'string', 'maxLength':config.memory_limit}}, ['name','content']),
+        ):
+            result.append(dict(name=name, description=description, input_schema=dict(type='object', properties=properties, required=required, additionalProperties=False)))
     return result
 
 
@@ -70,7 +79,7 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
     if config.agent == 'model' and adapter is None:
         raise ValueError('model agent requires an adapter')
     schemas = tools_for(config)
-    paths = [config.prompt_path, *config.instruction_paths]
+    paths = [config.harness_path, config.prompt_path, *config.instruction_paths]
     contents = {path: Path(path).read_text() for path in paths}
     if config.memory_template_path:
         contents[config.memory_template_path] = Path(config.memory_template_path).read_text()
@@ -190,6 +199,10 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
                     if not isinstance(call, dict) or set(call) != {'name', 'payload'}:
                         raise ValueError('expected name and payload')
                     action, payload = call['name'], call['payload']
+                    if action in ('list_memory', 'read_memory', 'write_memory_file') and config.enable_memory:
+                        result = context.memory_action(action, payload)
+                        record(action, payload, {'result': result})
+                        continue
                     if action == 'write_memory' and config.enable_memory:
                         if not isinstance(payload, dict) or set(payload) != {'content'}:
                             raise ValueError('memory requires content only')
@@ -200,6 +213,10 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
                     if action not in config.tool_allowlist:
                         raise ValueError('action is not allowed')
                     ACTIONS[action].model_validate(payload)
+                    if config.agent == 'model' and context.blocked(action, payload, config.loop_repeat_limit):
+                        invalid += 1
+                        record(action, payload, {'error': {'code': 'loop_blocked', 'message': 'Repeated unsuccessful call blocked locally. Change parameters or resolve the prerequisite before retrying.'}})
+                        continue
                 except (ValueError, TypeError, KeyError):
                     invalid += 1
                     record('invalid_provider_response', {}, {'error':{'code':'invalid_action', 'message':'Select an allowed action with its exact schema.'}})
