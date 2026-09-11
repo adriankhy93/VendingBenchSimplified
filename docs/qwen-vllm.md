@@ -82,3 +82,16 @@ http://localhost:8080/#459dc533ece845ee929b573ba6351ce5 while its local artifact
 are present. The compact results file is committed; detailed run logs are ignored
 by Git. Adapter tests cover native tool history, token accounting, malformed
 arguments, and timeout behavior. The full regression suite passed: 63 tests.
+
+## Recovery harness validation
+
+With the updated harness, run `a54f4901c4694cb5b998c92f49431c25` made 44
+model decisions and used 311,958 tokens. Repeated unaffordable purchases triggered
+five local `loop_blocked` responses and the run stopped with
+`repeated_invalid_actions`, without advancing simulated time for blocked calls.
+Qwen did not use the available memory tools in this run. The harness capabilities
+are tested, but profitable trading and effective agent-written memory remain
+unproven. See [validation metrics](harness-recovery-result.json).
+
+The full regression suite now passes 71 tests, including Markdown path confinement,
+on-demand reads, compact context, refusal variants and recovery after setting a price.
