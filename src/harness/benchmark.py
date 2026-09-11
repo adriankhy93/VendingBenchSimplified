@@ -7,6 +7,8 @@ import time
 from .runner import RunConfig, run
 
 def suite(config, seeds=(0, 1, 2), agents=('idle', 'listed', 'negotiating')):
+    if config.environment_name:
+        raise ValueError('seed suites require generated scenarios; use vending-run --environment for a fixed saved environment')
     reports = []
     for agent in agents:
         episodes = []

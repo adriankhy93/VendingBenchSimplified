@@ -1,0 +1,874 @@
+{
+  "seed": 0,
+  "scenario": {
+    "scenario_id": "smoke-v1",
+    "version": "1.0-proposal",
+    "runtime_seconds": 120,
+    "max_days": 14,
+    "starting_cash_cents": 50000,
+    "daily_fee_cents": 200,
+    "failure_limit": 10,
+    "machine_rows": 4,
+    "slots_per_row": 3,
+    "slot_capacity": 10,
+    "quantity_cap": 1000,
+    "retention_seconds": 3600,
+    "tick_minutes": 5,
+    "day_multipliers": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.1,
+      1.2,
+      0.8
+    ],
+    "durations": {
+      "observe": 5,
+      "search_products": 25,
+      "make_offer": 75,
+      "get_inventory": 5,
+      "get_balance": 5,
+      "get_machine": 5,
+      "set_price": 25,
+      "stock_items": 75,
+      "unstock_items": 75,
+      "collect_cash": 5,
+      "wait": 300,
+      "end_day": 0
+    },
+    "min_price_percent": 25,
+    "max_price_percent": 500,
+    "products": [
+      {
+        "id": "p01",
+        "name": "Water",
+        "reference_price_cents": 100,
+        "base_demand": 15.0,
+        "elasticity": 2.0
+      },
+      {
+        "id": "p02",
+        "name": "Cola",
+        "reference_price_cents": 150,
+        "base_demand": 12.0,
+        "elasticity": 2.2
+      },
+      {
+        "id": "p03",
+        "name": "Sparkling water",
+        "reference_price_cents": 175,
+        "base_demand": 9.0,
+        "elasticity": 1.8
+      },
+      {
+        "id": "p04",
+        "name": "Orange juice",
+        "reference_price_cents": 250,
+        "base_demand": 8.0,
+        "elasticity": 2.0
+      },
+      {
+        "id": "p05",
+        "name": "Iced tea",
+        "reference_price_cents": 200,
+        "base_demand": 10.0,
+        "elasticity": 2.1
+      },
+      {
+        "id": "p06",
+        "name": "Potato chips",
+        "reference_price_cents": 225,
+        "base_demand": 11.0,
+        "elasticity": 2.3
+      },
+      {
+        "id": "p07",
+        "name": "Chocolate bar",
+        "reference_price_cents": 180,
+        "base_demand": 13.0,
+        "elasticity": 2.5
+      },
+      {
+        "id": "p08",
+        "name": "Trail mix",
+        "reference_price_cents": 300,
+        "base_demand": 7.0,
+        "elasticity": 1.7
+      },
+      {
+        "id": "p09",
+        "name": "Protein bar",
+        "reference_price_cents": 400,
+        "base_demand": 6.0,
+        "elasticity": 1.5
+      },
+      {
+        "id": "p10",
+        "name": "Cold brew",
+        "reference_price_cents": 500,
+        "base_demand": 5.0,
+        "elasticity": 1.9
+      }
+    ],
+    "suppliers": [
+      {
+        "id": "s01",
+        "kind": "patient"
+      },
+      {
+        "id": "s02",
+        "kind": "patient"
+      },
+      {
+        "id": "s03",
+        "kind": "patient"
+      },
+      {
+        "id": "s04",
+        "kind": "patient"
+      },
+      {
+        "id": "s05",
+        "kind": "impatient"
+      },
+      {
+        "id": "s06",
+        "kind": "impatient"
+      },
+      {
+        "id": "s07",
+        "kind": "impatient"
+      },
+      {
+        "id": "s08",
+        "kind": "pushy-patient"
+      },
+      {
+        "id": "s09",
+        "kind": "pushy-patient"
+      },
+      {
+        "id": "s10",
+        "kind": "pushy-patient"
+      }
+    ],
+    "category_weights": {
+      "winner": 20,
+      "loser": 20,
+      "balanced": 60
+    },
+    "category_cost_percent": {
+      "winner": 80,
+      "loser": 120,
+      "balanced": 95
+    },
+    "cost_variation_min_ppm": 980000,
+    "cost_variation_max_ppm": 1020000,
+    "listed_price_percent": 125,
+    "supplier_quotes": [
+      {
+        "supplier_id": "s01",
+        "product_id": "p01",
+        "category": "loser",
+        "minimum_cents": 118,
+        "listed_cents": 148
+      },
+      {
+        "supplier_id": "s01",
+        "product_id": "p02",
+        "category": "balanced",
+        "minimum_cents": 144,
+        "listed_cents": 180
+      },
+      {
+        "supplier_id": "s01",
+        "product_id": "p03",
+        "category": "balanced",
+        "minimum_cents": 164,
+        "listed_cents": 205
+      },
+      {
+        "supplier_id": "s01",
+        "product_id": "p04",
+        "category": "balanced",
+        "minimum_cents": 240,
+        "listed_cents": 300
+      },
+      {
+        "supplier_id": "s01",
+        "product_id": "p05",
+        "category": "winner",
+        "minimum_cents": 162,
+        "listed_cents": 203
+      },
+      {
+        "supplier_id": "s01",
+        "product_id": "p06",
+        "category": "balanced",
+        "minimum_cents": 218,
+        "listed_cents": 273
+      },
+      {
+        "supplier_id": "s01",
+        "product_id": "p07",
+        "category": "balanced",
+        "minimum_cents": 171,
+        "listed_cents": 214
+      },
+      {
+        "supplier_id": "s01",
+        "product_id": "p08",
+        "category": "balanced",
+        "minimum_cents": 285,
+        "listed_cents": 357
+      },
+      {
+        "supplier_id": "s01",
+        "product_id": "p09",
+        "category": "winner",
+        "minimum_cents": 318,
+        "listed_cents": 398
+      },
+      {
+        "supplier_id": "s01",
+        "product_id": "p10",
+        "category": "balanced",
+        "minimum_cents": 470,
+        "listed_cents": 588
+      },
+      {
+        "supplier_id": "s02",
+        "product_id": "p01",
+        "category": "balanced",
+        "minimum_cents": 96,
+        "listed_cents": 120
+      },
+      {
+        "supplier_id": "s02",
+        "product_id": "p02",
+        "category": "balanced",
+        "minimum_cents": 145,
+        "listed_cents": 182
+      },
+      {
+        "supplier_id": "s02",
+        "product_id": "p03",
+        "category": "winner",
+        "minimum_cents": 141,
+        "listed_cents": 177
+      },
+      {
+        "supplier_id": "s02",
+        "product_id": "p04",
+        "category": "loser",
+        "minimum_cents": 304,
+        "listed_cents": 380
+      },
+      {
+        "supplier_id": "s02",
+        "product_id": "p05",
+        "category": "winner",
+        "minimum_cents": 157,
+        "listed_cents": 197
+      },
+      {
+        "supplier_id": "s02",
+        "product_id": "p06",
+        "category": "balanced",
+        "minimum_cents": 213,
+        "listed_cents": 267
+      },
+      {
+        "supplier_id": "s02",
+        "product_id": "p07",
+        "category": "balanced",
+        "minimum_cents": 174,
+        "listed_cents": 218
+      },
+      {
+        "supplier_id": "s02",
+        "product_id": "p08",
+        "category": "balanced",
+        "minimum_cents": 289,
+        "listed_cents": 362
+      },
+      {
+        "supplier_id": "s02",
+        "product_id": "p09",
+        "category": "balanced",
+        "minimum_cents": 383,
+        "listed_cents": 479
+      },
+      {
+        "supplier_id": "s02",
+        "product_id": "p10",
+        "category": "balanced",
+        "minimum_cents": 468,
+        "listed_cents": 585
+      },
+      {
+        "supplier_id": "s03",
+        "product_id": "p01",
+        "category": "balanced",
+        "minimum_cents": 95,
+        "listed_cents": 119
+      },
+      {
+        "supplier_id": "s03",
+        "product_id": "p02",
+        "category": "balanced",
+        "minimum_cents": 140,
+        "listed_cents": 175
+      },
+      {
+        "supplier_id": "s03",
+        "product_id": "p03",
+        "category": "balanced",
+        "minimum_cents": 169,
+        "listed_cents": 212
+      },
+      {
+        "supplier_id": "s03",
+        "product_id": "p04",
+        "category": "balanced",
+        "minimum_cents": 240,
+        "listed_cents": 300
+      },
+      {
+        "supplier_id": "s03",
+        "product_id": "p05",
+        "category": "balanced",
+        "minimum_cents": 192,
+        "listed_cents": 240
+      },
+      {
+        "supplier_id": "s03",
+        "product_id": "p06",
+        "category": "balanced",
+        "minimum_cents": 210,
+        "listed_cents": 263
+      },
+      {
+        "supplier_id": "s03",
+        "product_id": "p07",
+        "category": "loser",
+        "minimum_cents": 220,
+        "listed_cents": 275
+      },
+      {
+        "supplier_id": "s03",
+        "product_id": "p08",
+        "category": "balanced",
+        "minimum_cents": 289,
+        "listed_cents": 362
+      },
+      {
+        "supplier_id": "s03",
+        "product_id": "p09",
+        "category": "balanced",
+        "minimum_cents": 379,
+        "listed_cents": 474
+      },
+      {
+        "supplier_id": "s03",
+        "product_id": "p10",
+        "category": "balanced",
+        "minimum_cents": 480,
+        "listed_cents": 600
+      },
+      {
+        "supplier_id": "s04",
+        "product_id": "p01",
+        "category": "balanced",
+        "minimum_cents": 95,
+        "listed_cents": 119
+      },
+      {
+        "supplier_id": "s04",
+        "product_id": "p02",
+        "category": "loser",
+        "minimum_cents": 181,
+        "listed_cents": 227
+      },
+      {
+        "supplier_id": "s04",
+        "product_id": "p03",
+        "category": "winner",
+        "minimum_cents": 140,
+        "listed_cents": 175
+      },
+      {
+        "supplier_id": "s04",
+        "product_id": "p04",
+        "category": "loser",
+        "minimum_cents": 300,
+        "listed_cents": 375
+      },
+      {
+        "supplier_id": "s04",
+        "product_id": "p05",
+        "category": "loser",
+        "minimum_cents": 242,
+        "listed_cents": 303
+      },
+      {
+        "supplier_id": "s04",
+        "product_id": "p06",
+        "category": "balanced",
+        "minimum_cents": 215,
+        "listed_cents": 269
+      },
+      {
+        "supplier_id": "s04",
+        "product_id": "p07",
+        "category": "loser",
+        "minimum_cents": 217,
+        "listed_cents": 272
+      },
+      {
+        "supplier_id": "s04",
+        "product_id": "p08",
+        "category": "winner",
+        "minimum_cents": 236,
+        "listed_cents": 295
+      },
+      {
+        "supplier_id": "s04",
+        "product_id": "p09",
+        "category": "balanced",
+        "minimum_cents": 375,
+        "listed_cents": 469
+      },
+      {
+        "supplier_id": "s04",
+        "product_id": "p10",
+        "category": "balanced",
+        "minimum_cents": 476,
+        "listed_cents": 595
+      },
+      {
+        "supplier_id": "s05",
+        "product_id": "p01",
+        "category": "winner",
+        "minimum_cents": 80,
+        "listed_cents": 100
+      },
+      {
+        "supplier_id": "s05",
+        "product_id": "p02",
+        "category": "loser",
+        "minimum_cents": 183,
+        "listed_cents": 229
+      },
+      {
+        "supplier_id": "s05",
+        "product_id": "p03",
+        "category": "winner",
+        "minimum_cents": 140,
+        "listed_cents": 175
+      },
+      {
+        "supplier_id": "s05",
+        "product_id": "p04",
+        "category": "balanced",
+        "minimum_cents": 238,
+        "listed_cents": 298
+      },
+      {
+        "supplier_id": "s05",
+        "product_id": "p05",
+        "category": "balanced",
+        "minimum_cents": 187,
+        "listed_cents": 234
+      },
+      {
+        "supplier_id": "s05",
+        "product_id": "p06",
+        "category": "balanced",
+        "minimum_cents": 213,
+        "listed_cents": 267
+      },
+      {
+        "supplier_id": "s05",
+        "product_id": "p07",
+        "category": "winner",
+        "minimum_cents": 144,
+        "listed_cents": 180
+      },
+      {
+        "supplier_id": "s05",
+        "product_id": "p08",
+        "category": "balanced",
+        "minimum_cents": 287,
+        "listed_cents": 359
+      },
+      {
+        "supplier_id": "s05",
+        "product_id": "p09",
+        "category": "balanced",
+        "minimum_cents": 380,
+        "listed_cents": 475
+      },
+      {
+        "supplier_id": "s05",
+        "product_id": "p10",
+        "category": "winner",
+        "minimum_cents": 404,
+        "listed_cents": 505
+      },
+      {
+        "supplier_id": "s06",
+        "product_id": "p01",
+        "category": "balanced",
+        "minimum_cents": 96,
+        "listed_cents": 120
+      },
+      {
+        "supplier_id": "s06",
+        "product_id": "p02",
+        "category": "loser",
+        "minimum_cents": 181,
+        "listed_cents": 227
+      },
+      {
+        "supplier_id": "s06",
+        "product_id": "p03",
+        "category": "balanced",
+        "minimum_cents": 169,
+        "listed_cents": 212
+      },
+      {
+        "supplier_id": "s06",
+        "product_id": "p04",
+        "category": "balanced",
+        "minimum_cents": 238,
+        "listed_cents": 298
+      },
+      {
+        "supplier_id": "s06",
+        "product_id": "p05",
+        "category": "balanced",
+        "minimum_cents": 193,
+        "listed_cents": 242
+      },
+      {
+        "supplier_id": "s06",
+        "product_id": "p06",
+        "category": "loser",
+        "minimum_cents": 268,
+        "listed_cents": 335
+      },
+      {
+        "supplier_id": "s06",
+        "product_id": "p07",
+        "category": "balanced",
+        "minimum_cents": 172,
+        "listed_cents": 215
+      },
+      {
+        "supplier_id": "s06",
+        "product_id": "p08",
+        "category": "winner",
+        "minimum_cents": 237,
+        "listed_cents": 297
+      },
+      {
+        "supplier_id": "s06",
+        "product_id": "p09",
+        "category": "balanced",
+        "minimum_cents": 384,
+        "listed_cents": 480
+      },
+      {
+        "supplier_id": "s06",
+        "product_id": "p10",
+        "category": "balanced",
+        "minimum_cents": 481,
+        "listed_cents": 602
+      },
+      {
+        "supplier_id": "s07",
+        "product_id": "p01",
+        "category": "loser",
+        "minimum_cents": 120,
+        "listed_cents": 150
+      },
+      {
+        "supplier_id": "s07",
+        "product_id": "p02",
+        "category": "balanced",
+        "minimum_cents": 141,
+        "listed_cents": 177
+      },
+      {
+        "supplier_id": "s07",
+        "product_id": "p03",
+        "category": "winner",
+        "minimum_cents": 142,
+        "listed_cents": 178
+      },
+      {
+        "supplier_id": "s07",
+        "product_id": "p04",
+        "category": "balanced",
+        "minimum_cents": 239,
+        "listed_cents": 299
+      },
+      {
+        "supplier_id": "s07",
+        "product_id": "p05",
+        "category": "loser",
+        "minimum_cents": 236,
+        "listed_cents": 295
+      },
+      {
+        "supplier_id": "s07",
+        "product_id": "p06",
+        "category": "winner",
+        "minimum_cents": 183,
+        "listed_cents": 229
+      },
+      {
+        "supplier_id": "s07",
+        "product_id": "p07",
+        "category": "winner",
+        "minimum_cents": 142,
+        "listed_cents": 178
+      },
+      {
+        "supplier_id": "s07",
+        "product_id": "p08",
+        "category": "loser",
+        "minimum_cents": 360,
+        "listed_cents": 450
+      },
+      {
+        "supplier_id": "s07",
+        "product_id": "p09",
+        "category": "loser",
+        "minimum_cents": 474,
+        "listed_cents": 593
+      },
+      {
+        "supplier_id": "s07",
+        "product_id": "p10",
+        "category": "loser",
+        "minimum_cents": 611,
+        "listed_cents": 764
+      },
+      {
+        "supplier_id": "s08",
+        "product_id": "p01",
+        "category": "balanced",
+        "minimum_cents": 95,
+        "listed_cents": 119
+      },
+      {
+        "supplier_id": "s08",
+        "product_id": "p02",
+        "category": "loser",
+        "minimum_cents": 180,
+        "listed_cents": 225
+      },
+      {
+        "supplier_id": "s08",
+        "product_id": "p03",
+        "category": "balanced",
+        "minimum_cents": 169,
+        "listed_cents": 212
+      },
+      {
+        "supplier_id": "s08",
+        "product_id": "p04",
+        "category": "winner",
+        "minimum_cents": 197,
+        "listed_cents": 247
+      },
+      {
+        "supplier_id": "s08",
+        "product_id": "p05",
+        "category": "winner",
+        "minimum_cents": 158,
+        "listed_cents": 198
+      },
+      {
+        "supplier_id": "s08",
+        "product_id": "p06",
+        "category": "balanced",
+        "minimum_cents": 215,
+        "listed_cents": 269
+      },
+      {
+        "supplier_id": "s08",
+        "product_id": "p07",
+        "category": "loser",
+        "minimum_cents": 219,
+        "listed_cents": 274
+      },
+      {
+        "supplier_id": "s08",
+        "product_id": "p08",
+        "category": "loser",
+        "minimum_cents": 356,
+        "listed_cents": 445
+      },
+      {
+        "supplier_id": "s08",
+        "product_id": "p09",
+        "category": "balanced",
+        "minimum_cents": 374,
+        "listed_cents": 468
+      },
+      {
+        "supplier_id": "s08",
+        "product_id": "p10",
+        "category": "loser",
+        "minimum_cents": 600,
+        "listed_cents": 750
+      },
+      {
+        "supplier_id": "s09",
+        "product_id": "p01",
+        "category": "balanced",
+        "minimum_cents": 96,
+        "listed_cents": 120
+      },
+      {
+        "supplier_id": "s09",
+        "product_id": "p02",
+        "category": "balanced",
+        "minimum_cents": 143,
+        "listed_cents": 179
+      },
+      {
+        "supplier_id": "s09",
+        "product_id": "p03",
+        "category": "winner",
+        "minimum_cents": 140,
+        "listed_cents": 175
+      },
+      {
+        "supplier_id": "s09",
+        "product_id": "p04",
+        "category": "loser",
+        "minimum_cents": 302,
+        "listed_cents": 378
+      },
+      {
+        "supplier_id": "s09",
+        "product_id": "p05",
+        "category": "balanced",
+        "minimum_cents": 192,
+        "listed_cents": 240
+      },
+      {
+        "supplier_id": "s09",
+        "product_id": "p06",
+        "category": "balanced",
+        "minimum_cents": 216,
+        "listed_cents": 270
+      },
+      {
+        "supplier_id": "s09",
+        "product_id": "p07",
+        "category": "balanced",
+        "minimum_cents": 172,
+        "listed_cents": 215
+      },
+      {
+        "supplier_id": "s09",
+        "product_id": "p08",
+        "category": "balanced",
+        "minimum_cents": 288,
+        "listed_cents": 360
+      },
+      {
+        "supplier_id": "s09",
+        "product_id": "p09",
+        "category": "balanced",
+        "minimum_cents": 373,
+        "listed_cents": 467
+      },
+      {
+        "supplier_id": "s09",
+        "product_id": "p10",
+        "category": "balanced",
+        "minimum_cents": 483,
+        "listed_cents": 604
+      },
+      {
+        "supplier_id": "s10",
+        "product_id": "p01",
+        "category": "winner",
+        "minimum_cents": 79,
+        "listed_cents": 99
+      },
+      {
+        "supplier_id": "s10",
+        "product_id": "p02",
+        "category": "balanced",
+        "minimum_cents": 143,
+        "listed_cents": 179
+      },
+      {
+        "supplier_id": "s10",
+        "product_id": "p03",
+        "category": "winner",
+        "minimum_cents": 142,
+        "listed_cents": 178
+      },
+      {
+        "supplier_id": "s10",
+        "product_id": "p04",
+        "category": "balanced",
+        "minimum_cents": 236,
+        "listed_cents": 295
+      },
+      {
+        "supplier_id": "s10",
+        "product_id": "p05",
+        "category": "balanced",
+        "minimum_cents": 190,
+        "listed_cents": 238
+      },
+      {
+        "supplier_id": "s10",
+        "product_id": "p06",
+        "category": "winner",
+        "minimum_cents": 180,
+        "listed_cents": 225
+      },
+      {
+        "supplier_id": "s10",
+        "product_id": "p07",
+        "category": "balanced",
+        "minimum_cents": 172,
+        "listed_cents": 215
+      },
+      {
+        "supplier_id": "s10",
+        "product_id": "p08",
+        "category": "balanced",
+        "minimum_cents": 288,
+        "listed_cents": 360
+      },
+      {
+        "supplier_id": "s10",
+        "product_id": "p09",
+        "category": "balanced",
+        "minimum_cents": 381,
+        "listed_cents": 477
+      },
+      {
+        "supplier_id": "s10",
+        "product_id": "p10",
+        "category": "balanced",
+        "minimum_cents": 469,
+        "listed_cents": 587
+      }
+    ]
+  },
+  "format_version": 1,
+  "name": "smoke"
+}

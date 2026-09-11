@@ -11,6 +11,7 @@ import time
 from pydantic import ValidationError
 from .config import Scenario
 from .engine import Engine
+from .environments import load_environment
 from .models import ACTIONS, DomainValidation
 
 class APIError(Exception):
@@ -32,9 +33,11 @@ class Entry:
     deleted: bool = False
     replays: dict = field(default_factory=dict)
     private_metrics: dict = field(default_factory=dict)
+    definition: dict | None = None
 
 class Registry:
-    def __init__(self, scenario=None, clock=time.monotonic, artifact_dir="runs/service"):
+    def __init__(self, scenario=None, clock=time.monotonic, artifact_dir="runs/service", environments_dir="environments"):
+        self.environments_dir = Path(environments_dir)
         self.scenario = scenario or Scenario()
         self.clock = clock
         self.entries = {}
@@ -43,18 +46,34 @@ class Registry:
         self.artifact_dir.mkdir(parents=True, exist_ok=True)
 
     def create(self, options):
-        config = self.scenario.model_dump()
-        config.update({k: v for k, v in options.items() if k != "seed"})
-        if options.get("scenario_id") == "smoke-v1" and "max_days" not in options:
-            config["max_days"] = 14
-        if options.get("scenario_id") == "benchmark-v1" and "max_days" not in options:
-            config["max_days"] = None
-        config = Scenario.model_validate(config)
-        seed = options.get("seed", secrets.randbits(63))
+        definition = None
+        if 'environment_name' in options:
+            if set(options) - {'environment_name', 'environment_sha256'}:
+                raise ValueError('saved environments cannot be combined with scenario overrides')
+            try:
+                saved, digest = load_environment(self.environments_dir, options['environment_name'])
+            except FileNotFoundError as exc:
+                raise APIError(404, 'unknown_saved_environment', 'Saved environment not found') from exc
+            if options.get('environment_sha256', digest) != digest:
+                raise APIError(409, 'environment_definition_changed', 'Saved definition does not match the runner copy')
+            config, seed = saved.scenario, saved.seed
+            definition = dict(name=saved.name, sha256=digest)
+        else:
+            if 'environment_sha256' in options:
+                raise ValueError('environment_sha256 requires environment_name')
+            config = self.scenario.model_dump()
+            config.update({k: v for k, v in options.items() if k != "seed"})
+            if options.get("scenario_id") == "smoke-v1" and "max_days" not in options:
+                config["max_days"] = 14
+            if options.get("scenario_id") == "benchmark-v1" and "max_days" not in options:
+                config["max_days"] = None
+            config = Scenario.model_validate(config)
+            seed = options.get("seed", secrets.randbits(63))
         started = self.clock()
         engine = Engine(config, seed)
         engine.deadline_utc = (datetime.now(timezone.utc) + timedelta(seconds=config.runtime_seconds)).isoformat()
         entry = Entry(engine, started, started + config.runtime_seconds, config.retention_seconds, seed, config.model_dump(mode="json"))
+        entry.definition = definition
         env_id = "env_" + secrets.token_hex(12)
         with self.lock:
             self.entries[env_id] = entry
@@ -70,7 +89,7 @@ class Registry:
     def artifact(self, env_id, entry, summary):
         target = self.artifact_dir / f"{env_id}.json"
         temporary = target.with_suffix('.tmp')
-        temporary.write_text(json.dumps(dict(summary=summary, evaluator=dict(seed=entry.seed, config=entry.config, metrics=entry.private_metrics))))
+        temporary.write_text(json.dumps(dict(summary=summary, evaluator=dict(seed=entry.seed, config=entry.config, metrics=entry.private_metrics, definition=entry.definition))))
         temporary.replace(target)
 
     def finish(self, env_id, entry, state, reason):

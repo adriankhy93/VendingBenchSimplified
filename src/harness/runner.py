@@ -8,6 +8,7 @@ import time
 import uuid
 from pydantic import Field
 from vending.config import StrictModel
+from vending.environments import load_environment
 from vending.models import ACTIONS
 from .agents import Idle, Baseline
 from .client import Client, ServiceError
@@ -16,6 +17,8 @@ from .watchdog import decide, EnvironmentStopped
 
 class RunConfig(StrictModel):
     service_url: str = 'http://127.0.0.1:8000'
+    environment_name: str | None = None
+    environments_dir: str = 'environments'
     scenario_id: str = 'benchmark-v1'
     seed: int = Field(default=0, ge=0)
     agent: str = 'idle'
@@ -53,6 +56,12 @@ def tools_for(config):
 
 
 def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
+    saved, definition_hash = None, None
+    if config.environment_name:
+        saved, definition_hash = load_environment(config.environments_dir, config.environment_name)
+        config = RunConfig.model_validate(config.model_dump() | dict(seed=saved.seed,
+                   scenario_id=saved.scenario.scenario_id, runtime_seconds=saved.scenario.runtime_seconds,
+                   max_days=saved.scenario.max_days))
     if config.agent not in ('idle', 'listed', 'negotiating', 'model'):
         raise ValueError('unknown agent')
     if config.agent == 'model' and adapter is None:
@@ -66,6 +75,9 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
     directory = Path(config.artifact_dir) / run_id
     directory.mkdir(parents=True)
     effective = config.model_dump(mode='json') | {'file_hashes': {p: hashlib.sha256(t.encode()).hexdigest() for p, t in contents.items()}, 'run_id':run_id}
+    if saved:
+        effective['environment_definition'] = saved.model_dump(mode='json')
+        effective['environment_sha256'] = definition_hash
     (directory / 'config.json').write_text(json.dumps(effective, indent=2))
     context = Context('\n\n'.join(contents[p] for p in paths), directory / 'memory.md', config.recent_pairs, config.memory_limit)
     if config.memory_template_path:
@@ -90,6 +102,8 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
 
     try:
         options = dict(scenario_id=config.scenario_id, seed=config.seed, runtime_seconds=config.runtime_seconds, max_days=config.max_days)
+        if saved:
+            options = dict(environment_name=saved.name, environment_sha256=definition_hash)
         env_id = client.create(options, deadline)
         latest = client.action(env_id, 'observe', {}, deadline)
         record('observe', {}, latest)
@@ -239,7 +253,8 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
                                   cost_usd=cost if has_cost else None, wall_seconds=clock()-started,
                                   action_latency_mean_seconds=sum(action_latencies)/len(action_latencies) if action_latencies else None,
                                   action_latency_max_seconds=max(action_latencies, default=None)),
-                       evaluator=dict(seed=config.seed, scenario_id=config.scenario_id),
+                       evaluator=dict(seed=config.seed, scenario_id=config.scenario_id,
+                                      environment_name=config.environment_name, environment_sha256=definition_hash),
                        truncated_accounting_artifact=f'{env_id}.json' if not terminal and env_id else None)
         (directory / 'summary.json').write_text(json.dumps(summary, indent=2))
     return directory, summary
@@ -251,11 +266,20 @@ def main():
     parser.add_argument('--agent', choices=['idle','listed','negotiating','model'])
     parser.add_argument('--smoke', action='store_true')
     parser.add_argument('--model')
+    parser.add_argument('--environment', help='Saved environment name, without .json')
+    parser.add_argument('--environments-dir')
+    parser.add_argument('--local', action='store_true', help='Start and stop a private local HTTP service')
     args = parser.parse_args()
     config = RunConfig.model_validate_json(Path(args.config).read_text()) if args.config else RunConfig()
     overrides = {}
+    if args.environment:
+        overrides['environment_name'] = args.environment
+    if args.environments_dir:
+        overrides['environments_dir'] = args.environments_dir
     if args.agent:
         overrides['agent'] = args.agent
+    if args.smoke and (args.environment or config.environment_name):
+        parser.error('--smoke cannot override a saved environment; generate a smoke definition instead')
     if args.smoke:
         overrides.update(scenario_id='smoke-v1', max_days=14, runtime_seconds=120)
     if args.model:
@@ -267,8 +291,16 @@ def main():
         if config.provider != 'anthropic' or not config.model:
             parser.error('model agent requires provider anthropic and an explicit model')
         adapter = AnthropicAdapter(config.model)
-    directory, summary = run(config, adapter=adapter)
+    if args.local:
+        from .local_service import local_service
+        with local_service(config.environments_dir, config.artifact_dir) as url:
+            local_config = RunConfig.model_validate(config.model_dump() | dict(service_url=url))
+            directory, summary = run(local_config, adapter=adapter)
+    else:
+        directory, summary = run(config, adapter=adapter)
     print(json.dumps({'directory':str(directory), 'reason':summary['reason'], 'complete':summary['complete']}))
+    if summary['classification'] == 'failed':
+        raise SystemExit(1)
 
 if __name__ == '__main__':
     main()

@@ -11,6 +11,8 @@ from .registry import APIError, Registry
 from .models import ACTIONS, Created, Status, ActionResponse
 
 class Create(StrictModel):
+    environment_name: str | None = None
+    environment_sha256: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
     scenario_id: str | None = None
     seed: int | None = Field(default=None, ge=0, le=2**63 - 1)
     runtime_seconds: int | None = Field(default=None, gt=0)
@@ -51,7 +53,8 @@ def create_app(registry=None):
     if registry is None:
         path = os.getenv('VENDING_SCENARIO')
         scenario = Scenario.model_validate_json(open(path).read()) if path else Scenario()
-        registry = Registry(scenario, artifact_dir=os.getenv('VENDING_ARTIFACT_DIR', 'runs/service'))
+        registry = Registry(scenario, artifact_dir=os.getenv('VENDING_ARTIFACT_DIR', 'runs/service'),
+                            environments_dir=os.getenv('VENDING_ENVIRONMENTS_DIR', 'environments'))
 
     @asynccontextmanager
     async def lifespan(app):

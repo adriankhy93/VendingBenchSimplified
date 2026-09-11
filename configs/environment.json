@@ -1,0 +1,171 @@
+{
+  "seed": 0,
+  "scenario": {
+    "scenario_id": "benchmark-v1",
+    "version": "1.0-proposal",
+    "runtime_seconds": 7200,
+    "max_days": null,
+    "starting_cash_cents": 50000,
+    "daily_fee_cents": 200,
+    "failure_limit": 10,
+    "machine_rows": 4,
+    "slots_per_row": 3,
+    "slot_capacity": 10,
+    "quantity_cap": 1000,
+    "retention_seconds": 3600,
+    "tick_minutes": 5,
+    "day_multipliers": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.1,
+      1.2,
+      0.8
+    ],
+    "durations": {
+      "observe": 5,
+      "search_products": 25,
+      "make_offer": 75,
+      "get_inventory": 5,
+      "get_balance": 5,
+      "get_machine": 5,
+      "set_price": 25,
+      "stock_items": 75,
+      "unstock_items": 75,
+      "collect_cash": 5,
+      "wait": 300,
+      "end_day": 0
+    },
+    "min_price_percent": 25,
+    "max_price_percent": 500,
+    "products": [
+      {
+        "id": "p01",
+        "name": "Water",
+        "reference_price_cents": 100,
+        "base_demand": 15.0,
+        "elasticity": 2.0
+      },
+      {
+        "id": "p02",
+        "name": "Cola",
+        "reference_price_cents": 150,
+        "base_demand": 12.0,
+        "elasticity": 2.2
+      },
+      {
+        "id": "p03",
+        "name": "Sparkling water",
+        "reference_price_cents": 175,
+        "base_demand": 9.0,
+        "elasticity": 1.8
+      },
+      {
+        "id": "p04",
+        "name": "Orange juice",
+        "reference_price_cents": 250,
+        "base_demand": 8.0,
+        "elasticity": 2.0
+      },
+      {
+        "id": "p05",
+        "name": "Iced tea",
+        "reference_price_cents": 200,
+        "base_demand": 10.0,
+        "elasticity": 2.1
+      },
+      {
+        "id": "p06",
+        "name": "Potato chips",
+        "reference_price_cents": 225,
+        "base_demand": 11.0,
+        "elasticity": 2.3
+      },
+      {
+        "id": "p07",
+        "name": "Chocolate bar",
+        "reference_price_cents": 180,
+        "base_demand": 13.0,
+        "elasticity": 2.5
+      },
+      {
+        "id": "p08",
+        "name": "Trail mix",
+        "reference_price_cents": 300,
+        "base_demand": 7.0,
+        "elasticity": 1.7
+      },
+      {
+        "id": "p09",
+        "name": "Protein bar",
+        "reference_price_cents": 400,
+        "base_demand": 6.0,
+        "elasticity": 1.5
+      },
+      {
+        "id": "p10",
+        "name": "Cold brew",
+        "reference_price_cents": 500,
+        "base_demand": 5.0,
+        "elasticity": 1.9
+      }
+    ],
+    "suppliers": [
+      {
+        "id": "s01",
+        "kind": "patient"
+      },
+      {
+        "id": "s02",
+        "kind": "patient"
+      },
+      {
+        "id": "s03",
+        "kind": "patient"
+      },
+      {
+        "id": "s04",
+        "kind": "patient"
+      },
+      {
+        "id": "s05",
+        "kind": "impatient"
+      },
+      {
+        "id": "s06",
+        "kind": "impatient"
+      },
+      {
+        "id": "s07",
+        "kind": "impatient"
+      },
+      {
+        "id": "s08",
+        "kind": "pushy-patient"
+      },
+      {
+        "id": "s09",
+        "kind": "pushy-patient"
+      },
+      {
+        "id": "s10",
+        "kind": "pushy-patient"
+      }
+    ],
+    "category_weights": {
+      "winner": 20,
+      "loser": 20,
+      "balanced": 60
+    },
+    "category_cost_percent": {
+      "winner": 80,
+      "loser": 120,
+      "balanced": 95
+    },
+    "cost_variation_min_ppm": 980000,
+    "cost_variation_max_ppm": 1020000,
+    "listed_price_percent": 125,
+    "supplier_quotes": []
+  }
+}
