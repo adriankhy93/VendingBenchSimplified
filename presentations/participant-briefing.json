@@ -9,215 +9,504 @@
       "layout": "cover",
       "takeaway": "Your system will operate a vending machine in an organizer-selected test environment.",
       "notes": "Welcome participants. The deliverable is an agent harness: the software that turns model decisions into reliable business actions. This briefing is based on the current implementation. Event-specific submission and model policies are still to be announced. Suggested presentation time: about 20 minutes plus questions; reference slides are optional.",
-      "sources": ["README.md", "plan.md sections 1, 9"]
+      "sources": [
+        "README.md",
+        "plan.md sections 1, 9"
+      ]
     },
     {
       "section": "01 / THE ASSIGNMENT",
       "title": "You design the harness. We fix the market.",
       "layout": "columns",
       "columns": [
-        {"title": "YOUR DESIGN SPACE", "items": ["Prompts and decision policy", "Context, memory, and planning", "Tool routing and validation", "Retries, budgets, and logging"]},
-        {"title": "ORGANIZER-CONTROLLED TEST", "items": ["Saved environment and seed", "Products, suppliers, and economics", "Machine rules and real-time deadline", "Evaluation access and run conditions"]}
+        {
+          "title": "YOUR DESIGN SPACE",
+          "items": [
+            "Prompts and decision policy",
+            "Context, memory, and planning",
+            "Tool routing and validation",
+            "Retries, budgets, and logging"
+          ]
+        },
+        {
+          "title": "ORGANIZER-CONTROLLED TEST",
+          "items": [
+            "Saved environment and seed",
+            "Products, suppliers, and economics",
+            "Machine rules and real-time deadline",
+            "Evaluation access and run conditions"
+          ]
+        }
       ],
       "takeaway": "Optimize final net assets using the public interaction interface.",
       "notes": "A harness is more than a prompt. It includes orchestration, memory, provider integration, and error handling. Participants should not change the test definition or the simulation to improve a score. Model eligibility, compute allowances, and the submission interface will be announced by the organizers; do not imply they have already been finalized.",
-      "sources": ["src/harness/runner.py", "src/vending/environments.py"]
+      "sources": [
+        "src/harness/runner.py",
+        "src/vending/environments.py"
+      ]
     },
     {
       "section": "01 / THE ASSIGNMENT",
       "title": "One saved definition. A fresh episode each run.",
       "layout": "steps",
       "steps": [
-        {"title": "Practice", "body": "Develop on the supplied practice environment."},
-        {"title": "Freeze", "body": "Package the harness and record its configuration."},
-        {"title": "Evaluate", "body": "Run against the organizer-selected test definition."},
-        {"title": "Inspect", "body": "Review the score, completion state, and action trace."}
+        {
+          "title": "Practice",
+          "body": "Develop on the supplied practice environment."
+        },
+        {
+          "title": "Freeze",
+          "body": "Package the harness and record its configuration."
+        },
+        {
+          "title": "Evaluate",
+          "body": "Run against the organizer-selected test definition."
+        },
+        {
+          "title": "Inspect",
+          "body": "Review the score, completion state, and action trace."
+        }
       ],
       "takeaway": "Reusing a definition resets cash, stock, simulated time, and the real-time deadline.",
       "notes": "A pre-generated environment is an initial definition, not a running checkpoint. Each episode gets a separate environment ID and starts empty. Identical definitions and seeds reproduce the market; action choices change sales opportunities. Identical action sequences reproduce the business simulation until real-time expiry intervenes. The number of official repeats, compute conditions, and tie-breaks remain organizer decisions. Freeze these before comparing submissions.",
-      "sources": ["src/vending/environments.py", "src/vending/registry.py", "docs/environments.md"]
+      "sources": [
+        "src/vending/environments.py",
+        "src/vending/registry.py",
+        "docs/environments.md"
+      ]
     },
     {
       "section": "02 / THE ENVIRONMENT",
       "title": "Learn from quotes and realized sales.",
       "layout": "columns",
       "columns": [
-        {"title": "AVAILABLE TO YOUR HARNESS", "items": ["Product names and reference prices", "Listed quotes and negotiation replies", "Balances, stock, and selling prices", "Realized sales, time costs, and rules"]},
-        {"title": "KEPT WITH THE EVALUATOR", "items": ["Supplier minimums and category labels", "Latent demand and elasticity", "Seed and future demand stream", "Private test definition and service logs"]}
+        {
+          "title": "AVAILABLE TO YOUR HARNESS",
+          "items": [
+            "Product names and reference prices",
+            "Listed quotes and negotiation replies",
+            "Balances, stock, and selling prices",
+            "Realized sales, time costs, and rules"
+          ]
+        },
+        {
+          "title": "KEPT WITH THE EVALUATOR",
+          "items": [
+            "Supplier minimums and category labels",
+            "Latent demand and elasticity",
+            "Seed and future demand stream",
+            "Private test definition and service logs"
+          ]
+        }
       ],
       "takeaway": "Treat the public API as the information boundary for the test.",
       "notes": "Observations expose the complete public catalog and initial listed quotes. Participants can discover costs by negotiating and demand by observing sales. Do not distribute the private test JSON, private service artifacts, or evaluator configuration to participant harnesses. The local MVP does not enforce this boundary through authentication or a sandbox; organizers must enforce it through deployment and file access. This operational point is expanded in the organizer checklist, not presented as an already implemented security guarantee.",
-      "sources": ["src/vending/engine.py: catalog and observe", "plan.md sections 3, 9"]
+      "sources": [
+        "src/vending/engine.py: catalog and observe",
+        "plan.md sections 3, 9"
+      ]
     },
     {
       "section": "02 / THE ENVIRONMENT",
       "title": "A small business with tight operating constraints.",
       "layout": "stats",
       "stats": [
-        {"value": "$500", "label": "Starting spendable cash"},
-        {"value": "$2 / day", "label": "Fee paid from spendable cash"},
-        {"value": "120 units", "label": "4 rows × 3 slots × 10 units"},
-        {"value": "10 + 10", "label": "Products and suppliers"}
+        {
+          "value": "$500",
+          "label": "Starting spendable cash"
+        },
+        {
+          "value": "$2 / day",
+          "label": "Fee paid from spendable cash"
+        },
+        {
+          "value": "120 units",
+          "label": "4 rows × 3 slots × 10 units"
+        },
+        {
+          "value": "10 + 10",
+          "label": "Products and suppliers"
+        }
       ],
-      "bullets": ["One product per slot; several slots may hold the same product.", "Storage is unlimited. Delivery is immediate. Products do not spoil.", "Collect machine cash to make it spendable."],
+      "bullets": [
+        "One product per slot; several slots may hold the same product.",
+        "Storage is unlimited. Delivery is immediate. Products do not spoil.",
+        "Collect machine cash to make it spendable."
+      ],
       "takeaway": "Reference defaults shown. Read the selected environment's public rules at startup.",
       "notes": "All numeric settings here are current defaults, not guaranteed hidden-test settings. Catalog size, fees, machine shape, capacity, and action costs are configurable. The engine requires a positive selling price before stocking. There is no separate logistics pipeline. Purchases and inventory transfers are all-or-nothing.",
-      "sources": ["src/vending/config.py", "src/vending/engine.py"]
+      "sources": [
+        "src/vending/config.py",
+        "src/vending/engine.py"
+      ]
     },
     {
       "section": "02 / THE ENVIRONMENT",
       "title": "There are two clocks to manage.",
       "layout": "columns",
       "columns": [
-        {"title": "REAL TIME", "items": ["Default: 2 hours from environment creation", "Thinking and network latency use this budget", "After expiry, actions are rejected", "No automatic simulation of unplayed days"]},
-        {"title": "SIMULATED TIME", "items": ["Advances only through environment actions", "Sales resolve in fixed intervals", "Midnight triggers fees and debt accounting", "end_day advances to the next midnight"]}
+        {
+          "title": "REAL TIME",
+          "items": [
+            "Default: 2 hours from environment creation",
+            "Thinking and network latency use this budget",
+            "After expiry, actions are rejected",
+            "No automatic simulation of unplayed days"
+          ]
+        },
+        {
+          "title": "SIMULATED TIME",
+          "items": [
+            "Advances only through environment actions",
+            "Sales resolve in fixed intervals",
+            "Midnight triggers fees and debt accounting",
+            "end_day advances to the next midnight"
+          ]
+        }
       ],
       "takeaway": "Benchmark runs have no simulated-day cap. Practice smoke runs do.",
       "notes": "The default demand tick is five minutes. An action applies its immediate effects first, then advances time and resolves sales. Status/result reads do not advance business time. The separate harness watchdog is slightly longer than the environment runtime to allow cleanup. Do not confuse that grace period with extra business time. The environment may terminate earlier after repeated fee failures.",
-      "sources": ["src/vending/engine.py: execute and advance", "src/vending/registry.py", "src/harness/runner.py"]
+      "sources": [
+        "src/vending/engine.py: execute and advance",
+        "src/vending/registry.py",
+        "src/harness/runner.py"
+      ]
     },
     {
       "section": "02 / THE ENVIRONMENT",
       "title": "Keep the operating loop moving.",
       "layout": "steps",
       "steps": [
-        {"title": "Source", "body": "Compare quotes and submit an offer."},
-        {"title": "Prepare", "body": "Set prices and move stock into slots."},
-        {"title": "Sell", "body": "Advance time and observe realized sales."},
-        {"title": "Reinvest", "body": "Collect cash, pay fees, and replenish."}
+        {
+          "title": "Source",
+          "body": "Compare quotes and submit an offer."
+        },
+        {
+          "title": "Prepare",
+          "body": "Set prices and move stock into slots."
+        },
+        {
+          "title": "Sell",
+          "body": "Advance time and observe realized sales."
+        },
+        {
+          "title": "Reinvest",
+          "body": "Collect cash, pay fees, and replenish."
+        }
       ],
       "takeaway": "At the default limit, 10 consecutive incomplete daily-fee payments end the episode.",
       "notes": "Accepted offers debit spendable cash and add a storage lot immediately. Counteroffers do neither. At midnight, available spendable cash pays existing fee arrears before the current fee; partial payment creates debt. A current fee not fully paid increments the failure streak. A fully paid current fee resets it. Uncollected machine cash cannot pay the fee automatically. Multiple slots raise availability but do not multiply demand.",
-      "sources": ["src/vending/engine.py: apply and advance"]
+      "sources": [
+        "src/vending/engine.py: apply and advance"
+      ]
     },
     {
       "section": "02 / THE ENVIRONMENT",
       "title": "Negotiation produces structured outcomes.",
       "layout": "table",
-      "headers": ["Outcome", "Meaning", "Business effect"],
+      "headers": [
+        "Outcome",
+        "Meaning",
+        "Business effect"
+      ],
       "rows": [
-        ["accepted", "Offer accepted and funded", "Cash debited; stock delivered"],
-        ["counteroffer", "Different price proposed", "No purchase; submit a new offer"],
-        ["no_reply", "Supplier declines to engage", "Normal result; action time is spent"],
-        ["insufficient_funds", "Accepted terms exceed cash", "No partial purchase"]
+        [
+          "accepted",
+          "Offer accepted and funded",
+          "Cash debited; stock delivered"
+        ],
+        [
+          "counteroffer",
+          "Different price proposed",
+          "No purchase; submit a new offer"
+        ],
+        [
+          "no_reply",
+          "Supplier declines to engage",
+          "Normal result; action time is spent"
+        ],
+        [
+          "insufficient_funds",
+          "Accepted terms exceed cash",
+          "No partial purchase"
+        ]
       ],
       "takeaway": "A suggestion for another product is optional; it never buys anything automatically.",
       "notes": "Suppliers follow deterministic policies. Patient suppliers counter out-of-range offers, impatient suppliers can return no_reply, and pushy-patient suppliers may add an upsell. This deck does not disclose particular supplier types, pair minimums, or category assignments in the test. Supplier stock is unlimited, but the quantity cap and spendable cash limit purchases. A no_reply outcome is not a network timeout.",
-      "sources": ["src/vending/suppliers.py", "src/vending/engine.py: make_offer"]
+      "sources": [
+        "src/vending/suppliers.py",
+        "src/vending/engine.py: make_offer"
+      ]
     },
     {
       "section": "02 / THE ENVIRONMENT",
       "title": "Pricing trades margin against demand.",
       "layout": "pricing",
-      "bullets": ["Demand is stochastic and price-sensitive.", "Higher prices reduce expected demand; one day's sales can be noisy.", "Stockouts lose sales. Extra slots provide stock, not extra demand.", "Each product has one selling price across all its slots."],
+      "bullets": [
+        "Demand is stochastic and price-sensitive.",
+        "Higher prices reduce expected demand; one day's sales can be noisy.",
+        "Stockouts lose sales. Extra slots provide stock, not extra demand.",
+        "Each product has one selling price across all its slots."
+      ],
       "takeaway": "Use small experiments and observed sales to choose an assortment and price policy.",
       "notes": "Demand is Poisson with a constant-elasticity price adjustment and a repeating day multiplier. The parameters are private. The diagram is qualitative, not a plot of hidden test demand. Product demand is independent with no substitution. Selling-price bounds are returned in the public catalog; the default range is 0.25 to 5 times reference, rounded to integer cents. Reference price is a comparison anchor, not a guarantee of the most profitable selling price.",
-      "sources": ["src/vending/demand.py", "src/vending/engine.py: bounds and advance"]
+      "sources": [
+        "src/vending/demand.py",
+        "src/vending/engine.py: bounds and advance"
+      ]
     },
     {
       "section": "03 / SCORING",
       "title": "Grow net assets, not just revenue.",
       "layout": "score",
-      "formula": "Spendable cash + machine cash + inventory cost − fee debt",
-      "example": ["$350 cash", "+ $80 machine", "+ $130 inventory", "− $10 debt", "= $550 score"],
+      "formula": "Spendable cash + machine cash\n+ inventory at acquisition cost − fee debt",
+      "example": [
+        "$350 cash",
+        "+ $80 machine",
+        "+ $130 inventory",
+        "− $10 debt",
+        "= $550 score"
+      ],
       "takeaway": "With $500 starting cash, this illustrative result is $50 net profit.",
       "notes": "All unsold units are valued at their actual acquisition cost, in storage and in machine slots. Purchasing exchanges equal cash and inventory value and does not create immediate profit. Raising retail prices does not revalue stock. Cash collection and inventory transfers preserve score. Selling recognizes revenue minus acquisition cost; completed-day fees reduce net assets. Fee debt is subtracted so failing to pay does not improve the score. The example is invented arithmetic, not a test result.",
-      "sources": ["src/vending/scoring.py", "src/vending/models.py: FIFO transfer", "src/vending/engine.py"]
+      "sources": [
+        "src/vending/scoring.py",
+        "src/vending/models.py: FIFO transfer",
+        "src/vending/engine.py"
+      ]
     },
     {
       "section": "04 / HARNESS DESIGN",
       "title": "Every tool call has an operating cost.",
       "layout": "table",
-      "headers": ["Default time", "Actions", "Use"],
+      "headers": [
+        "Default time",
+        "Actions",
+        "Use"
+      ],
       "rows": [
-        ["5 minutes", "observe · get_inventory · get_balance\nget_machine · collect_cash", "Read state or collect revenue"],
-        ["25 minutes", "search_products · set_price", "Research or change pricing"],
-        ["75 minutes", "make_offer · stock_items · unstock_items", "Source or move inventory"],
-        ["300 minutes", "wait", "Advance five simulated hours"],
-        ["To midnight", "end_day", "Finish the current day"]
+        [
+          "5 minutes",
+          "observe · get_inventory · get_balance\nget_machine · collect_cash",
+          "Read state or collect revenue"
+        ],
+        [
+          "25 minutes",
+          "search_products · set_price",
+          "Research or change pricing"
+        ],
+        [
+          "75 minutes",
+          "make_offer · stock_items · unstock_items",
+          "Source or move inventory"
+        ],
+        [
+          "300 minutes",
+          "wait",
+          "Advance five simulated hours"
+        ],
+        [
+          "To midnight",
+          "end_day",
+          "Finish the current day"
+        ]
       ],
       "takeaway": "Business refusals consume action time. Malformed requests do not.",
       "notes": "These costs are configurable; read observe.rules.durations. Public reads implemented as actions cost time, unlike HTTP status/result reads. Avoid repeatedly observing everything when a smaller state update is sufficient. Unknown actions and schema errors do not advance simulated time. End-day called at midnight advances a full day. All effects and incidental sales are returned in the common action envelope.",
-      "sources": ["src/vending/config.py: DURATIONS", "src/vending/models.py: ACTIONS", "src/vending/engine.py"]
+      "sources": [
+        "src/vending/config.py: DURATIONS",
+        "src/vending/models.py: ACTIONS",
+        "src/vending/engine.py"
+      ]
     },
     {
       "section": "04 / HARNESS DESIGN",
       "title": "Build a loop that stays useful under pressure.",
       "layout": "loop",
       "steps": [
-        {"title": "Observe", "body": "Initialize from public state."},
-        {"title": "Decide", "body": "Give the policy context and budgets."},
-        {"title": "Validate", "body": "Check one allowed action and payload."},
-        {"title": "Execute", "body": "Call the API; handle the outcome."},
-        {"title": "Remember", "body": "Log, update state, and check limits."}
+        {
+          "title": "Observe",
+          "body": "Initialize from public state."
+        },
+        {
+          "title": "Decide",
+          "body": "Give the policy context and budgets."
+        },
+        {
+          "title": "Validate",
+          "body": "Check one allowed action and payload."
+        },
+        {
+          "title": "Execute",
+          "body": "Call the API; handle the outcome."
+        },
+        {
+          "title": "Remember",
+          "body": "Log, update state, and check limits."
+        }
       ],
       "takeaway": "Preserve instructions, useful discoveries, and recent action/result pairs.",
       "notes": "The starter provides an HTTP client, three scripted policies, bounded deterministic context summaries, isolated Markdown memory, a runner, and an optional model adapter. Teams can redesign the harness rather than inherit every starter choice. Keep at most one environment action in flight. If a provider returns multiple tool calls, process them serially and stop on termination. A local memory write uses model tokens but no simulated minutes. Remember the model is a policy component inside a controlled execution loop.",
-      "sources": ["src/harness/runner.py", "src/harness/context.py", "src/harness/agents.py"]
+      "sources": [
+        "src/harness/runner.py",
+        "src/harness/context.py",
+        "src/harness/agents.py"
+      ]
     },
     {
       "section": "04 / HARNESS DESIGN",
       "title": "Reliable execution protects your score.",
       "layout": "columns",
       "columns": [
-        {"title": "BEFORE AND DURING ACTIONS", "items": ["Validate IDs, integer cents, and quantities", "Execute actions serially", "Retry transient failures with the SAME key", "Bound model timeouts and poll status"]},
-        {"title": "WHEN THE EPISODE STOPS", "items": ["Treat 410 as ended; inspect 409 state", "Retrieve the terminal summary", "Preserve logs and the final public snapshot", "Always attempt cleanup"]}
+        {
+          "title": "BEFORE AND DURING ACTIONS",
+          "items": [
+            "Validate IDs, integer cents, and quantities",
+            "Execute actions serially",
+            "Retry transient failures with the SAME key",
+            "Bound model timeouts and poll status"
+          ]
+        },
+        {
+          "title": "WHEN THE EPISODE STOPS",
+          "items": [
+            "Treat 410 as ended; inspect 409 state",
+            "Retrieve the terminal summary",
+            "Preserve logs and the final public snapshot",
+            "Always attempt cleanup"
+          ]
+        }
       ],
       "takeaway": "Never retry an ambiguous purchase with a new Idempotency-Key.",
       "notes": "An identical action and payload with the same idempotency key replays while the environment is running, without a second purchase or time advance. A changed payload conflicts. After termination, known actions are rejected even for a replay key. Unknown actions remain 404. For 409, distinguish idempotency conflicts from unavailable lifecycle state by inspecting the error code and status. The current client retries transport errors at most twice; creation has no idempotency contract and should not be blindly retried. Timeout/expiry can occur during inference, so do not assume a tool call remains eligible after a long model response.",
-      "sources": ["src/harness/client.py", "src/harness/watchdog.py", "src/vending/registry.py"]
+      "sources": [
+        "src/harness/client.py",
+        "src/harness/watchdog.py",
+        "src/vending/registry.py"
+      ]
     },
     {
       "section": "04 / HARNESS DESIGN",
       "title": "Plan for three separate resource limits.",
       "layout": "budget",
       "stats": [
-        {"value": "7,200 s", "label": "Default environment lifetime"},
-        {"value": "100,000", "label": "Default input + output token budget"},
-        {"value": "1,000", "label": "Default policy-call ceiling"}
+        {
+          "value": "7,200 s",
+          "label": "Default environment lifetime"
+        },
+        {
+          "value": "100,000",
+          "label": "Default input + output token budget"
+        },
+        {
+          "value": "1,000",
+          "label": "Default policy-call ceiling"
+        }
       ],
-      "bullets": ["Reserve input and maximum output tokens before a model call.", "History, tool schemas, and summaries also cost tokens.", "Stopping on a harness budget is a truncated run, not natural completion."],
+      "bullets": [
+        "Reserve input and maximum output tokens before a model call.",
+        "History, tool schemas, and summaries also cost tokens.",
+        "Stopping on a harness budget is a truncated run, not natural completion."
+      ],
       "takeaway": "Current starter defaults. Official model, compute, and budget rules will be announced.",
       "notes": "The starter uses a conservative UTF-8 byte-based input reservation plus overhead. It can stop early instead of knowingly exceeding the budget. The 1,000 ceiling counts policy calls, not necessarily environment actions; the initialization observe is separate. The 100,000 target and two-hour duration have not been calibrated through a paid full-duration model run. Do not present them as a measured performance guarantee or a finalized event rule. Full-run score and incomplete/truncated diagnostics should remain distinguishable.",
-      "sources": ["src/harness/runner.py: RunConfig and run", "docs/calibration.md"]
+      "sources": [
+        "src/harness/runner.py: RunConfig and run",
+        "docs/calibration.md"
+      ]
     },
     {
       "section": "05 / DEVELOPMENT AND REVIEW",
       "title": "Measure tokens where decisions happen.",
       "layout": "table",
-      "headers": ["View", "What is recorded", "How to interpret it"],
+      "headers": [
+        "View",
+        "What is recorded",
+        "How to interpret it"
+      ],
       "rows": [
-        ["Per action", "Input, output, and total tokens", "Full provider-call usage, including context"],
-        ["Per simulated day", "Tokens and model-call count", "Assigned to the model decision's day"],
-        ["Shared response", "Linked model-call ID", "Charge first action once; later actions add zero"],
-        ["Timeout", "Estimated reservation", "Clearly labeled; not measured token usage"],
-        ["Run summary", "Totals + daily breakdown", "Check cost against business progress"]
+        [
+          "Per action",
+          "Input, output, and total tokens",
+          "Full provider-call usage, including context"
+        ],
+        [
+          "Per simulated day",
+          "Tokens and model-call count",
+          "Assigned to the model decision's day"
+        ],
+        [
+          "Shared response",
+          "Linked model-call ID",
+          "Charge first action once; later actions add zero"
+        ],
+        [
+          "Timeout",
+          "Estimated reservation",
+          "Clearly labeled; not measured token usage"
+        ],
+        [
+          "Run summary",
+          "Totals + daily breakdown",
+          "Check cost against business progress"
+        ]
       ],
       "takeaway": "Scripted actions use zero model tokens. Missing legacy attribution is unavailable.",
       "notes": "An action that crosses midnight retains its model cost on the day inference began. Invalid/empty responses, local memory writes, and failures still count toward token usage. A call which is never executed after a stop is logged as a no-action record so totals reconcile. The new action fields are start_sim_time and token_usage, with model_call and attribution. Usage records carry simulated decision time; summary.usage.tokens_by_day stores daily totals. Input token usage includes provider-reported cached input where available.",
-      "sources": ["src/harness/usage.py", "src/harness/runner.py", "src/viewer/tokens.py"]
+      "sources": [
+        "src/harness/usage.py",
+        "src/harness/runner.py",
+        "src/viewer/tokens.py"
+      ]
     },
     {
       "section": "05 / DEVELOPMENT AND REVIEW",
       "title": "Start with one complete practice episode.",
       "layout": "code",
       "code": "python3 -m pip install -e '.[test]'\n\n./scripts/run_environment.sh smoke --agent listed\n./scripts/run_environment.sh smoke --agent negotiating\n\n./scripts/view_runs.sh\n# Open http://localhost:8080",
-      "bullets": ["Use the supplied smoke environment for local development.", "The run script owns a temporary local service and cleans it up.", "Use the baselines to verify your setup before replacing the policy."],
+      "bullets": [
+        "Use the supplied smoke environment for local development.",
+        "The run script owns a temporary local service and cleans it up.",
+        "Use the baselines to verify your setup before replacing the policy."
+      ],
       "takeaway": "Practice scripts are not the private test-access or submission interface.",
       "notes": "Run these commands from the repository root with a Python environment activated. Use python3 -m venv .venv first if appropriate. The test extra contains pytest, not the optional model SDK. Idle, listed, and negotiating policies need no model credentials. Teams implementing their own harness can reuse typed action schemas and the HTTP client. Private test definitions should remain with the evaluator; the saved-environment convenience command reads local definition files and is a development workflow, not an isolated grading boundary.",
-      "sources": ["README.md", "scripts/run_environment.sh", "scripts/view_runs.sh", "pyproject.toml"]
+      "sources": [
+        "README.md",
+        "scripts/run_environment.sh",
+        "scripts/view_runs.sh",
+        "pyproject.toml"
+      ]
     },
     {
       "section": "05 / DEVELOPMENT AND REVIEW",
       "title": "Review the run, then improve one decision.",
       "layout": "review",
       "columns": [
-        {"title": "BUSINESS PERFORMANCE", "items": ["Score, net profit, and liquidity", "Sales by product and daily fees", "Cash trajectory and stock snapshots"]},
-        {"title": "HARNESS PERFORMANCE", "items": ["Action outcomes and exact payloads", "Tokens by action and simulated day", "Context, memory, usage, and stop reason"]}
+        {
+          "title": "BUSINESS PERFORMANCE",
+          "items": [
+            "Score, net profit, and liquidity",
+            "Sales by product and daily fees",
+            "Cash trajectory and stock snapshots"
+          ]
+        },
+        {
+          "title": "HARNESS PERFORMANCE",
+          "items": [
+            "Action outcomes and exact payloads",
+            "Tokens by action and simulated day",
+            "Context, memory, usage, and stop reason"
+          ]
+        }
       ],
       "takeaway": "The viewer is read-only. Inspecting a recorded run consumes no simulated time.",
       "notes": "Use the dashboard to find one concrete failure mode: redundant observations, unfunded purchases, too little fee liquidity, slow decisions, or context growing faster than useful progress. The machine display is the last observed snapshot, not a reconstructed final inventory. Unfinished means no final summary was written and does not prove the process is still alive. Truncated scores can come from trusted pre-deletion snapshots and remain explicitly incomplete. A human may inspect practice configuration, but the test evaluator view is not an extra tool for participant policies.",
-      "sources": ["src/viewer/api.py", "src/viewer/store.py", "README.md"]
+      "sources": [
+        "src/viewer/api.py",
+        "src/viewer/store.py",
+        "README.md"
+      ]
     },
     {
       "section": "06 / READY FOR THE TEST",
@@ -232,40 +521,95 @@
       ],
       "takeaway": "To be announced: submission packaging, deadline, allowed models, test handoff, and tie-breaks.",
       "notes": "This is a recommended readiness checklist, not a finalized submission contract. Organizers must announce the invocation protocol, lifecycle ownership, model allowance, runtime/token enforcement, test repeats, deadline, and treatment of truncated or infrastructure-failed runs. The supplied runner writes config.json, actions.jsonl, usage.jsonl, memory.md, and summary.json; participant harnesses should preserve equivalent auditability under the final contract. Close the core briefing by inviting questions about the environment interface and the harness boundary.",
-      "sources": ["plan.md section 9", "src/harness/runner.py", "README.md"]
+      "sources": [
+        "plan.md section 9",
+        "src/harness/runner.py",
+        "README.md"
+      ]
     },
     {
       "section": "REFERENCE / API LIFECYCLE",
       "title": "Create or receive an ID, act, then retrieve results.",
       "layout": "table",
-      "headers": ["Request", "Success", "Notes"],
+      "headers": [
+        "Request",
+        "Success",
+        "Notes"
+      ],
       "rows": [
-        ["POST /env", "201: {env_id}", "Coordinator-controlled test selection"],
-        ["POST /env/{id}/{action}", "200: action envelope", "Optional Idempotency-Key"],
-        ["GET /env/{id}/status", "200: {state}", "running / ended / unavailable"],
-        ["GET /env/{id}/result", "200: terminal summary", "409 while running"],
-        ["DELETE /env/{id}", "204: empty response", "Idempotent cleanup"]
+        [
+          "POST /env",
+          "201: {env_id}",
+          "Coordinator-controlled test selection"
+        ],
+        [
+          "POST /env/{id}/{action}",
+          "200: action envelope",
+          "Optional Idempotency-Key"
+        ],
+        [
+          "GET /env/{id}/status",
+          "200: {state}",
+          "running / ended / unavailable"
+        ],
+        [
+          "GET /env/{id}/result",
+          "200: terminal summary",
+          "409 while running"
+        ],
+        [
+          "DELETE /env/{id}",
+          "204: empty response",
+          "Idempotent cleanup"
+        ]
       ],
       "takeaway": "The final accepted action can return 200 with state ended. Later actions are rejected.",
       "notes": "Known actions return 410 on ended environments and 409 on unavailable ones. Unknown IDs/actions are 404. Invalid JSON is 400; schema/identifier errors are 422. Domain refusals are ordinary 200 results. Status contains only state; it does not contain a score. Retrieve result before deletion. If the harness stops while running, a trusted service-side deletion snapshot supports truncated accounting; there is no post-delete result endpoint. Exactly who owns creation and deletion during the event must be specified in the organizer's test handoff.",
-      "sources": ["src/vending/api.py", "src/vending/registry.py"]
+      "sources": [
+        "src/vending/api.py",
+        "src/vending/registry.py"
+      ]
     },
     {
       "section": "REFERENCE / REQUEST SHAPES",
       "title": "Use the exact schemas. Money is integer cents.",
       "layout": "table",
-      "headers": ["Action", "Payload"],
+      "headers": [
+        "Action",
+        "Payload"
+      ],
       "rows": [
-        ["make_offer", "supplier_id, product_id, quantity, unit_price_cents"],
-        ["set_price", "product_id, unit_price_cents"],
-        ["stock_items", "slot_id, product_id, quantity"],
-        ["unstock_items", "slot_id, quantity"],
-        ["search_products", "Optional product_id"],
-        ["Other listed actions", "{}"]
+        [
+          "make_offer",
+          "supplier_id, product_id, quantity, unit_price_cents"
+        ],
+        [
+          "set_price",
+          "product_id, unit_price_cents"
+        ],
+        [
+          "stock_items",
+          "slot_id, product_id, quantity"
+        ],
+        [
+          "unstock_items",
+          "slot_id, quantity"
+        ],
+        [
+          "search_products",
+          "Optional product_id"
+        ],
+        [
+          "Other listed actions",
+          "{}"
+        ]
       ],
       "takeaway": "Reject extra fields, fractional quantities, invalid IDs, and out-of-bounds prices locally.",
       "notes": "Refer to src/vending/models.py for the shared typed schemas. Quantities and offer prices must be positive integers, and the configured quantity cap applies. Selling prices must respect the product's public bounds. Boolean values are not valid integer amounts. A 200 response includes action_id, state, sim_time, elapsed_minutes, result, events, metrics, and termination_reason, with score on terminal accepted actions. There is no arbitrary Python method dispatch or hidden evaluator action available to the policy.",
-      "sources": ["src/vending/models.py", "src/vending/engine.py: validate"]
+      "sources": [
+        "src/vending/models.py",
+        "src/vending/engine.py: validate"
+      ]
     },
     {
       "section": "REFERENCE / ONE ACTION",
@@ -275,7 +619,11 @@
       "response": "{\n  \"state\": \"running\",\n  \"elapsed_minutes\": 75,\n  \"result\": {\n    \"outcome\": \"counteroffer\",\n    \"unit_price_cents\": 110\n  }\n}",
       "takeaway": "Illustrative response excerpt. A counteroffer moves no cash or goods.",
       "notes": "This is an invented interaction, not a revealed test quote. The response omits envelope fields and counteroffer terms for readability. To accept the counteroffer, submit a new make_offer action with a new idempotency key because its payload differs. Only retries of the identical original request reuse purchase-0001. Log the actual full response and preserve its incidental sales events.",
-      "sources": ["src/vending/models.py", "src/vending/engine.py", "src/harness/client.py"]
+      "sources": [
+        "src/vending/models.py",
+        "src/vending/engine.py",
+        "src/harness/client.py"
+      ]
     }
   ]
 }
