@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 import time
 import uuid
+import re
+from datetime import datetime, timezone
 from pydantic import Field
 from vending.config import StrictModel
 from vending.environments import load_environment
@@ -25,6 +27,7 @@ class RunConfig(StrictModel):
     scenario_id: str = 'benchmark-v1'
     seed: int = Field(default=0, ge=0)
     agent: str = 'idle'
+    run_name: str | None = Field(default=None, min_length=1, max_length=80)
     provider: str | None = None
     model: str | None = None
     vllm: VLLMSettings = Field(default_factory=VLLMSettings)
@@ -83,10 +86,13 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
     contents = {path: Path(path).read_text() for path in paths}
     if config.memory_template_path:
         contents[config.memory_template_path] = Path(config.memory_template_path).read_text()
-    run_id = uuid.uuid4().hex
+    created_at = datetime.now(timezone.utc)
+    label = config.run_name or f'{config.model or config.agent}--{config.environment_name or config.scenario_id}'
+    slug = re.sub(r'[^a-z0-9_-]+', '-', label.lower()).strip('-_')[:80] or 'run'
+    run_id = f'{created_at:%Y-%m-%d_%H-%M-%S}--{slug}--{uuid.uuid4().hex[:8]}'
     directory = Path(config.artifact_dir) / run_id
     directory.mkdir(parents=True)
-    effective = config.model_dump(mode='json') | {'file_hashes': {p: hashlib.sha256(t.encode()).hexdigest() for p, t in contents.items()}, 'run_id':run_id, 'token_tracking_version':1}
+    effective = config.model_dump(mode='json') | {'file_hashes': {p: hashlib.sha256(t.encode()).hexdigest() for p, t in contents.items()}, 'run_id':run_id, 'created_at':created_at.isoformat(), 'token_tracking_version':1}
     if saved:
         effective['environment_definition'] = saved.model_dump(mode='json')
         effective['environment_sha256'] = definition_hash
@@ -295,6 +301,7 @@ def main():
     parser.add_argument('--agent', choices=['idle','listed','negotiating','model'])
     parser.add_argument('--smoke', action='store_true')
     parser.add_argument('--model')
+    parser.add_argument('--run-name', help='Readable experiment label for the run folder and viewer')
     parser.add_argument('--provider', choices=['anthropic','vllm'])
     parser.add_argument('--model-base-url', help='vLLM endpoint including /v1')
     parser.add_argument('--environment', help='Saved environment name, without .json')
@@ -303,6 +310,8 @@ def main():
     args = parser.parse_args()
     config = RunConfig.model_validate_json(Path(args.config).read_text()) if args.config else RunConfig()
     overrides = {}
+    if args.run_name:
+        overrides['run_name'] = args.run_name
     if args.environment:
         overrides['environment_name'] = args.environment
     if args.environments_dir:

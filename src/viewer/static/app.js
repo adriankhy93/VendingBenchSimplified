@@ -127,9 +127,9 @@ async function loadRuns(selectFirst = false) {
             button.dataset.runId = run.run_id;
             button.setAttribute('aria-pressed', String(run.run_id === state.id));
             const top = node('div', 'run-top');
-            top.append(node('span', '', words(run.agent)), node('span', '', money(run.score?.score_cents)));
+            top.append(node('span', '', run.run_name || run.model || words(run.agent)), node('span', '', money(run.score?.score_cents)));
             const bottom = node('div', 'run-bottom');
-            bottom.append(badge(run.classification), node('span', '', `Seed ${run.seed??'—'} · ${run.run_id.slice(0,6)}`));
+            bottom.append(badge(run.classification), node('span', '', `Seed ${run.seed??'—'} · ${new Date(run.created_at).toLocaleString()}`));
             button.append(top, node('div', 'run-env', run.environment), bottom);
             button.addEventListener('click', () => selectRun(run.run_id));
             list.append(button);

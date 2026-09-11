@@ -21,6 +21,8 @@ def test_scripted_episodes(tmp_path, agent):
     client = LocalClient(create_app(registry))
     directory, summary = run(RunConfig(agent=agent, scenario_id='smoke-v1', max_days=4, artifact_dir=str(tmp_path)), client=client)
     assert summary['complete'] and summary['reason'] == 'ended'
+    assert f'--{agent}--smoke-v1--' in directory.name
+    assert json.loads((directory/'config.json').read_text())['created_at']
     assert not registry.entries
     assert {p.name for p in directory.iterdir()} == {'config.json','actions.jsonl','usage.jsonl','memory.md','summary.json'}
     assert summary['usage']['input_tokens'] == 0

@@ -217,3 +217,15 @@ blocks repeated refused calls, retains compact timestamped public state, and off
 run-local Markdown memory tools when `enable_memory` is true (enabled in the Qwen
 configuration). Notes live in `runs/<run_id>/memory/`; use `list_memory`,
 `read_memory`, and `write_memory_file` to manage them on demand.
+
+New run folders use UTC timestamps and readable model/environment names, for example
+`2026-09-11_10-30-00--qwen3-5-2b--smoke--a1b2c3d4`. A short random suffix
+prevents collisions. Add an experiment label with:
+
+```bash
+./scripts/run_environment.sh smoke --config configs/harness-qwen-vllm.json --run-name recovery-memory
+```
+
+This produces `YYYY-MM-DD_HH-MM-SS--recovery-memory--<suffix>`. The viewer shows
+experiment labels (or model names), environment and date for both old and new runs.
+Existing run folders and their links remain valid.

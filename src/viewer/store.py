@@ -79,12 +79,12 @@ class RunStore:
         score = terminal.get('score') or {}
         modified = self.file(path, 'config.json').stat().st_mtime
         evaluator = (summary or {}).get('evaluator') or {}
-        item = dict(run_id=path.name, agent=config.get('agent', 'unknown'), model=config.get('model'),
+        item = dict(run_id=path.name, agent=config.get('agent', 'unknown'), model=config.get('model'), run_name=config.get('run_name'),
                     environment=evaluator.get('environment_name') or config.get('environment_name') or config.get('scenario_id', 'unknown'),
                     seed=evaluator.get('seed', config.get('seed')), scenario_version=terminal.get('scenario_version'),
                     classification=(summary or {}).get('classification', 'unfinished'),
                     reason=terminal.get('termination_reason') or (summary or {}).get('reason'),
-                    created_at=datetime.fromtimestamp(modified, timezone.utc).isoformat(),
+                    created_at=config.get('created_at') or datetime.fromtimestamp(modified, timezone.utc).isoformat(),
                     score=score, score_source=source, simulated_minutes=terminal.get('simulated_minutes'),
                     usage=(summary or {}).get('usage') or {}, errors=(summary or {}).get('errors') or [], warnings=warnings)
         return item, config, summary, terminal
@@ -98,7 +98,7 @@ class RunStore:
                     item, *_ = self.metadata(path)
                 except (RunNotFound, OSError, TypeError, AttributeError):
                     continue
-                haystack = ' '.join(str(item[k]) for k in ('run_id', 'agent', 'model', 'environment', 'seed')).lower()
+                haystack = ' '.join(str(item[k]) for k in ('run_id', 'run_name', 'agent', 'model', 'environment', 'seed')).lower()
                 if query.lower() in haystack and (not classification or item['classification'] == classification):
                     items.append(item)
         items.sort(key=lambda x: (x['created_at'], x['run_id']), reverse=True)
