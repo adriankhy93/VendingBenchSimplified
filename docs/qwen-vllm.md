@@ -57,13 +57,17 @@ cost. A successful connection does not imply a profitable or completed episode.
 
 The server's tool parser follows the [Qwen model instructions](https://huggingface.co/Qwen/Qwen3.5-2B)
 and [vLLM tool-calling protocol](https://docs.vllm.ai/en/latest/features/tool_calling/).
+The current harness loads [harness.md](../harness.md), includes loop recovery,
+uses compact public context, and enables on-demand Markdown memory tools.
+The measurements below precede these improvements.
+
 See [measured results](qwen-vllm-results.json) for the initial real-model diagnostics.
 
 ## Observed behavior (2026-09-11)
 
 The initial 100,000-token run made six decisions and used 76,476 tokens before
 conservative budget reservation stopped it. It mostly inspected the environment
-and made no purchases. The committed diagnostic configuration then made 62
+and made no purchases. The original diagnostic configuration then made 62
 decisions in 79.3 seconds, using 475,601 input and 3,644 output tokens (479,245
 total). It bought ten water units but repeatedly attempted stocking before setting
 a price. All 60 stocking attempts were refused with `price_required`.
@@ -71,8 +75,7 @@ a price. All 60 stocking attempts were refused with `price_required`.
 That second run stopped at the token budget during day 4, with three completed
 days, zero sales, and pre-deletion assets of $494 ($6 below the initial assets).
 It is **budget-truncated**, not a completed evaluation or evidence of competitive
-performance. The baseline prompt and short context need further work to recover
-from repeated business refusals. No scripted agent substituted for model decisions.
+performance. This failure motivated the recovery and memory changes documented in harness.md. No scripted agent substituted for model decisions.
 
 Inspect the second run at
 http://localhost:8080/#459dc533ece845ee929b573ba6351ce5 while its local artifacts

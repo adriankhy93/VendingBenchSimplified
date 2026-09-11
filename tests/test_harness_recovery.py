@@ -60,3 +60,14 @@ def test_memory_tools_available_with_action_descriptions():
     tools = {t['name']:t for t in tools_for(RunConfig(enable_memory=True))}
     assert {'read_memory','write_memory_file','list_memory'} <= tools.keys()
     assert 'price_required' in tools['stock_items']['description']
+
+
+@pytest.mark.parametrize('outcome', ['rejected', 'no_reply', 'insufficient_funds', 'counteroffer'])
+def test_business_refusals_all_trigger_recovery(tmp_path, outcome):
+    ctx = Context('guide', tmp_path/'memory.md')
+    payload = {'supplier_id':'s01','product_id':'p01','quantity':100,'unit_price_cents':100}
+    for _ in range(3):
+        ctx.append('make_offer', payload, {'result':{'outcome':outcome}})
+    assert ctx.blocked('make_offer', payload, 3)
+    ctx.append('get_balance', {}, {'result':{'cash_cents':0}})
+    assert ctx.blocked('make_offer', payload, 3)

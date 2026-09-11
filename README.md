@@ -211,3 +211,9 @@ persistence, distributed workers, or external logistics.
 Run `/storage/models/Qwen3.5-2B` through the model harness using the
 [launch instructions and diagnostic configuration](docs/qwen-vllm.md).
 Actual diagnostic results are recorded alongside that guide.
+
+The model harness loads [harness.md](harness.md) as operating instructions. It
+blocks repeated refused calls, retains compact timestamped public state, and offers
+run-local Markdown memory tools when `enable_memory` is true (enabled in the Qwen
+configuration). Notes live in `runs/<run_id>/memory/`; use `list_memory`,
+`read_memory`, and `write_memory_file` to manage them on demand.

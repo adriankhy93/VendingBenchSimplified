@@ -12,5 +12,6 @@
   },
   "instruction_paths": [
     "prompts/qwen-vllm.md"
-  ]
+  ],
+  "enable_memory": true
 }

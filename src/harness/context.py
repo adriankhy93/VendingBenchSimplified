@@ -64,7 +64,7 @@ class Context:
     def append(self, action, payload, response):
         result = response.get('result', {})
         signature = json.dumps([action, payload], sort_keys=True)
-        if result.get('outcome') in ('rejected', 'no_reply') or response.get('error'):
+        if result.get('outcome') in ('rejected', 'no_reply', 'insufficient_funds', 'counteroffer') or response.get('error'):
             self.failures[signature] = self.failures.get(signature, 0) + 1
             self.failures = dict(list(self.failures.items())[-100:])
             self.recovery = {'action': action, 'payload': payload, 'result': result or response.get('error'),
