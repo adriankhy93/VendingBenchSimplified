@@ -15,6 +15,7 @@ from .client import Client, ServiceError
 from .context import Context
 from .watchdog import decide, EnvironmentStopped
 from .usage import TokenLedger
+from .vllm_provider import VLLMSettings
 
 class RunConfig(StrictModel):
     service_url: str = 'http://127.0.0.1:8000'
@@ -25,6 +26,7 @@ class RunConfig(StrictModel):
     agent: str = 'idle'
     provider: str | None = None
     model: str | None = None
+    vllm: VLLMSettings = Field(default_factory=VLLMSettings)
     runtime_seconds: int = Field(default=7200, gt=0)
     max_days: int | None = Field(default=None, gt=0)
     token_budget: int = Field(default=100000, gt=0)
@@ -276,6 +278,8 @@ def main():
     parser.add_argument('--agent', choices=['idle','listed','negotiating','model'])
     parser.add_argument('--smoke', action='store_true')
     parser.add_argument('--model')
+    parser.add_argument('--provider', choices=['anthropic','vllm'])
+    parser.add_argument('--model-base-url', help='vLLM endpoint including /v1')
     parser.add_argument('--environment', help='Saved environment name, without .json')
     parser.add_argument('--environments-dir')
     parser.add_argument('--local', action='store_true', help='Start and stop a private local HTTP service')
@@ -292,22 +296,36 @@ def main():
         parser.error('--smoke cannot override a saved environment; generate a smoke definition instead')
     if args.smoke:
         overrides.update(scenario_id='smoke-v1', max_days=14, runtime_seconds=120)
+    if args.provider:
+        overrides['provider'] = args.provider
     if args.model:
-        overrides.update(model=args.model, provider='anthropic')
+        overrides.update(model=args.model, provider=args.provider or config.provider or 'anthropic')
+    if args.model_base_url:
+        overrides['vllm'] = VLLMSettings.model_validate(config.vllm.model_dump() | dict(base_url=args.model_base_url))
     config = RunConfig.model_validate(config.model_dump() | overrides)
     adapter = None
     if config.agent == 'model':
-        from .provider import AnthropicAdapter
-        if config.provider != 'anthropic' or not config.model:
-            parser.error('model agent requires provider anthropic and an explicit model')
-        adapter = AnthropicAdapter(config.model)
-    if args.local:
-        from .local_service import local_service
-        with local_service(config.environments_dir, config.artifact_dir) as url:
-            local_config = RunConfig.model_validate(config.model_dump() | dict(service_url=url))
-            directory, summary = run(local_config, adapter=adapter)
-    else:
-        directory, summary = run(config, adapter=adapter)
+        if not config.model:
+            parser.error('model agent requires an explicit model')
+        if config.provider == 'anthropic':
+            from .provider import AnthropicAdapter
+            adapter = AnthropicAdapter(config.model)
+        elif config.provider == 'vllm':
+            from .vllm_provider import VLLMAdapter
+            adapter = VLLMAdapter(config.model, config.vllm)
+        else:
+            parser.error('model agent requires provider anthropic or vllm')
+    try:
+        if args.local:
+            from .local_service import local_service
+            with local_service(config.environments_dir, config.artifact_dir) as url:
+                local_config = RunConfig.model_validate(config.model_dump() | dict(service_url=url))
+                directory, summary = run(local_config, adapter=adapter)
+        else:
+            directory, summary = run(config, adapter=adapter)
+    finally:
+        if adapter is not None and hasattr(adapter, 'close'):
+            adapter.close()
     print(json.dumps({'directory':str(directory), 'reason':summary['reason'], 'complete':summary['complete']}))
     if summary['classification'] == 'failed':
         raise SystemExit(1)
