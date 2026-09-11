@@ -1,0 +1,210 @@
+{
+  "config": {
+    "service_url": "http://127.0.0.1:8765",
+    "scenario_id": "smoke-v1",
+    "seed": 0,
+    "agent": "idle",
+    "provider": null,
+    "model": null,
+    "runtime_seconds": 120,
+    "max_days": 14,
+    "token_budget": 100000,
+    "max_calls": 1000,
+    "max_output_tokens": 1024,
+    "watchdog_grace_seconds": 60,
+    "request_timeout": 30,
+    "model_timeout": 60,
+    "max_invalid": 5,
+    "recent_pairs": 20,
+    "memory_limit": 8000,
+    "prompt_path": "prompts/agent.md",
+    "instruction_paths": [],
+    "memory_template_path": null,
+    "tool_allowlist": [
+      "observe",
+      "get_inventory",
+      "get_balance",
+      "get_machine",
+      "collect_cash",
+      "wait",
+      "end_day",
+      "search_products",
+      "make_offer",
+      "set_price",
+      "stock_items",
+      "unstock_items"
+    ],
+    "enable_memory": false,
+    "artifact_dir": "runs"
+  },
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "measurement": {
+    "python": "3.12.3",
+    "platform": "Linux-5.15.0-1093-nvidia-x86_64-with-glibc2.39",
+    "cpu_count": 112,
+    "runner_peak_rss_kib": 115388,
+    "server_peak_rss": "VmHWM:\t   72952 kB"
+  },
+  "reports": [
+    {
+      "agent": "idle",
+      "completion_rate": 1.0,
+      "score_mean_cents": 47200,
+      "score_stdev_cents": 0.0,
+      "wall_seconds": 2.1784400176256895,
+      "tokens": 0,
+      "seeds": [
+        {
+          "seed": 0,
+          "score_cents": 47200,
+          "simulated_minutes": 20160,
+          "usage": {
+            "calls": 14,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": null,
+            "wall_seconds": 0.7466304544359446,
+            "action_latency_mean_seconds": 0.04820452657129083,
+            "action_latency_max_seconds": 0.0527857206761837
+          }
+        },
+        {
+          "seed": 1,
+          "score_cents": 47200,
+          "simulated_minutes": 20160,
+          "usage": {
+            "calls": 14,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": null,
+            "wall_seconds": 0.7028598431497812,
+            "action_latency_mean_seconds": 0.04893837948994977,
+            "action_latency_max_seconds": 0.05234461463987827
+          }
+        },
+        {
+          "seed": 2,
+          "score_cents": 47200,
+          "simulated_minutes": 20160,
+          "usage": {
+            "calls": 14,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": null,
+            "wall_seconds": 0.7289497200399637,
+            "action_latency_mean_seconds": 0.05106596143117973,
+            "action_latency_max_seconds": 0.06230665557086468
+          }
+        }
+      ]
+    },
+    {
+      "agent": "listed",
+      "completion_rate": 1.0,
+      "score_mean_cents": 101008.66666666667,
+      "score_stdev_cents": 1952.5477942649416,
+      "wall_seconds": 4.3078809808939695,
+      "tokens": 0,
+      "seeds": [
+        {
+          "seed": 0,
+          "score_cents": 101847,
+          "simulated_minutes": 20160,
+          "usage": {
+            "calls": 250,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": null,
+            "wall_seconds": 1.4099405780434608,
+            "action_latency_mean_seconds": 0.005501153156161309,
+            "action_latency_max_seconds": 0.045701852068305016
+          }
+        },
+        {
+          "seed": 1,
+          "score_cents": 102868,
+          "simulated_minutes": 20160,
+          "usage": {
+            "calls": 244,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": null,
+            "wall_seconds": 1.425374848768115,
+            "action_latency_mean_seconds": 0.005693605520808306,
+            "action_latency_max_seconds": 0.04216710291802883
+          }
+        },
+        {
+          "seed": 2,
+          "score_cents": 98311,
+          "simulated_minutes": 20160,
+          "usage": {
+            "calls": 238,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": null,
+            "wall_seconds": 1.4725655540823936,
+            "action_latency_mean_seconds": 0.006045607474296033,
+            "action_latency_max_seconds": 0.04343448020517826
+          }
+        }
+      ]
+    },
+    {
+      "agent": "negotiating",
+      "completion_rate": 1.0,
+      "score_mean_cents": 113789.33333333333,
+      "score_stdev_cents": 3352.148995627863,
+      "wall_seconds": 4.605905141681433,
+      "tokens": 0,
+      "seeds": [
+        {
+          "seed": 0,
+          "score_cents": 116820,
+          "simulated_minutes": 20160,
+          "usage": {
+            "calls": 259,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": null,
+            "wall_seconds": 1.5733375996351242,
+            "action_latency_mean_seconds": 0.005926226945342244,
+            "action_latency_max_seconds": 0.05652855709195137
+          }
+        },
+        {
+          "seed": 1,
+          "score_cents": 115431,
+          "simulated_minutes": 20160,
+          "usage": {
+            "calls": 256,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": null,
+            "wall_seconds": 1.5276864543557167,
+            "action_latency_mean_seconds": 0.005802379848319106,
+            "action_latency_max_seconds": 0.046433430165052414
+          }
+        },
+        {
+          "seed": 2,
+          "score_cents": 109117,
+          "simulated_minutes": 20160,
+          "usage": {
+            "calls": 244,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": null,
+            "wall_seconds": 1.5048810876905918,
+            "action_latency_mean_seconds": 0.00600459301447282,
+            "action_latency_max_seconds": 0.0570124089717865
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -108,3 +108,40 @@ def test_final_action_and_idle_retention(setup):
     now[0] += 3600
     registry.sweep()
     assert c.get(f'/env/{eid}/result').status_code == 404
+
+def test_competing_actions_and_delete_race(setup, monkeypatch):
+    from vending.models import Lot
+    c, r, _ = setup
+    monkeypatch.setattr('vending.demand.sample', lambda *args: 0)
+    eid = create(c)
+    engine = r.lookup(eid).engine
+    engine.storage['p01'] = [Lot('a', 10, 80, 1)]
+    engine.prices['p01'] = 100
+    payload = dict(slot_id='r1s1', product_id='p01', quantity=6)
+    with ThreadPoolExecutor(2) as pool:
+        results = list(pool.map(lambda _: r.action(eid,'stock_items',payload), range(2)))
+    assert sum(x['result'].get('moved_quantity',0) for x in results) == 6
+    assert r.lookup(eid).engine.slots['r1s1'].quantity == 6
+    def act():
+        try:
+            return r.action(eid,'collect_cash',{})
+        except APIError as exc:
+            assert exc.status == 404
+    with ThreadPoolExecutor(2) as pool:
+        futures = [pool.submit(act), pool.submit(r.delete,eid)]
+        for future in futures:
+            future.result()
+    assert eid not in r.entries
+
+
+def test_competing_purchases_cannot_overspend(setup):
+    c, r, _ = setup
+    eid = create(c)
+    e = r.lookup(eid).engine
+    price = e.quotes['s01','p01'].listed
+    e.cash = price * 10
+    payload = dict(supplier_id='s01', product_id='p01', quantity=10, unit_price_cents=price)
+    with ThreadPoolExecutor(2) as pool:
+        results = list(pool.map(lambda _: r.action(eid,'make_offer',payload), range(2)))
+    assert {x['result']['outcome'] for x in results} == {'accepted','insufficient_funds'}
+    assert r.lookup(eid).engine.cash == 0

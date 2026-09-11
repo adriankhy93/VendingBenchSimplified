@@ -57,3 +57,35 @@ def transfer(source: list[Lot], target: list[Lot], quantity: int) -> int:
             source.pop(0)
     target.sort(key=lambda lot: lot.order)
     return cost
+
+# Response models also serve the generated REST documentation.
+from typing import Any, Literal
+
+class Created(StrictModel):
+    env_id: str
+
+class Status(StrictModel):
+    state: Literal['running', 'ended', 'unavailable']
+
+class SimTime(StrictModel):
+    day: int = Field(ge=1)
+    minute_of_day: int = Field(ge=0, lt=1440)
+
+class Score(StrictModel):
+    cash_cents: int
+    machine_cash_cents: int
+    inventory_value_cents: int
+    gross_assets_cents: int
+    fee_debt_cents: int
+    score_cents: int
+    net_profit_cents: int
+
+class ActionResponse(Status):
+    action_id: str
+    sim_time: SimTime
+    elapsed_minutes: int
+    result: dict[str, Any]
+    events: list[dict[str, Any]]
+    metrics: dict[str, int]
+    termination_reason: str | None
+    score: Score | None = None

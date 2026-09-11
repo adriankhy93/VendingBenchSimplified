@@ -31,6 +31,7 @@ class Entry:
     finished: float | None = None
     deleted: bool = False
     replays: dict = field(default_factory=dict)
+    private_metrics: dict = field(default_factory=dict)
 
 class Registry:
     def __init__(self, scenario=None, clock=time.monotonic, artifact_dir="runs/service"):
@@ -69,13 +70,14 @@ class Registry:
     def artifact(self, env_id, entry, summary):
         target = self.artifact_dir / f"{env_id}.json"
         temporary = target.with_suffix('.tmp')
-        temporary.write_text(json.dumps(dict(summary=summary, evaluator=dict(seed=entry.seed, config=entry.config))))
+        temporary.write_text(json.dumps(dict(summary=summary, evaluator=dict(seed=entry.seed, config=entry.config, metrics=entry.private_metrics))))
         temporary.replace(target)
 
     def finish(self, env_id, entry, state, reason):
         if entry.state != "running":
             return
         engine = entry.engine
+        entry.private_metrics = dict(stockouts=dict(engine.stockouts))
         engine.state, engine.reason = state, reason
         summary = engine.summary(complete=state == "ended")
         summary["committed_action_count"] = engine.action_count
@@ -183,6 +185,7 @@ class Registry:
                 if self.clock() >= entry.deadline:
                     self.finish(env_id, entry, "ended", "real_deadline")
                 else:
+                    entry.private_metrics = dict(stockouts=dict(entry.engine.stockouts))
                     summary = entry.engine.summary(complete=False)
                     summary.update(committed_action_count=entry.engine.action_count, termination_reason="deleted_while_running", wall_duration_seconds=self.clock() - entry.created)
                     self.artifact(env_id, entry, summary)

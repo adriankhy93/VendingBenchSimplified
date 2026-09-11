@@ -8,7 +8,7 @@ from pydantic import Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 from .config import Scenario, StrictModel
 from .registry import APIError, Registry
-from .models import ACTIONS
+from .models import ACTIONS, Created, Status, ActionResponse
 
 class Create(StrictModel):
     scenario_id: str | None = None
@@ -75,7 +75,7 @@ def create_app(registry=None):
     async def error(request, exc):
         return JSONResponse({"error": {"code": exc.code, "message": exc.message}}, status_code=exc.status)
 
-    @app.post('/env', status_code=201)
+    @app.post('/env', status_code=201, response_model=Created)
     async def create(request: Request):
         data = await body(request)
         try:
@@ -88,7 +88,7 @@ def create_app(registry=None):
             raise APIError(422, 'invalid_configuration', 'Invalid evaluator configuration') from exc
         return {"env_id": env_id}
 
-    @app.get('/env/{env_id}/status')
+    @app.get('/env/{env_id}/status', response_model=Status)
     def status(env_id: str):
         return registry.status(env_id)
 
@@ -101,7 +101,7 @@ def create_app(registry=None):
         registry.delete(env_id)
         return Response(status_code=204)
 
-    @app.post('/env/{env_id}/{action}')
+    @app.post('/env/{env_id}/{action}', response_model=ActionResponse, response_model_exclude_unset=True)
     async def action(env_id: str, action: str, request: Request):
         # Resolve lifecycle before parsing to keep terminal/unknown-action precedence.
         def preflight():

@@ -64,7 +64,7 @@ class Engine:
                     quotes=[q.public() for q in self.quotes.values() if product_id in (None, q.product_id)])
 
     def observe(self):
-        return dict(**self.catalog(), **self.balance(), **self.machine(), storage=self.inventory(),
+        return dict(scenario_version=self.config.version, **self.catalog(), **self.balance(), **self.machine(), storage=self.inventory(),
                     purchases=list(self.purchase_history),
                     rules=dict(durations=self.config.durations, slot_capacity=self.config.slot_capacity,
                                quantity_cap=self.config.quantity_cap, daily_fee_cents=self.config.daily_fee_cents,
@@ -212,6 +212,7 @@ class Engine:
     def summary(self, complete=True):
         return dict(state=self.state, termination_reason=self.reason, complete=complete,
                     scenario_version=self.config.version, score=score(self), simulated_minutes=self.minute,
+                    completed_days=self.minute // 1440,
                     metrics=dict(revenue_cents=self.revenue, cost_of_goods_sold_cents=self.cogs,
                                  fees_assessed_cents=self.fees_assessed, fees_paid_cents=self.fees_paid,
                                  fees_unpaid_cents=self.debt, units_sold=dict(self.sold), purchases=self.purchase_count,

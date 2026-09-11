@@ -84,3 +84,40 @@ def test_rejections_consume_time_but_invalid_does_not():
     with pytest.raises(DomainValidation):
         e.execute('set_price', dict(product_id='bad', unit_price_cents=100))
     assert e.minute == 75
+
+def test_duplicate_slots_do_not_duplicate_demand():
+    e = Engine(Scenario(), 123)
+    e.prices['p01'] = 25
+    e.slots['r1s1'].product_id = 'p01'
+    e.slots['r1s1'].lots = [Lot('a', 10, 80, 1)]
+    b = deepcopy(e)
+    b.slots['r1s1'].lots[0].quantity = 5
+    b.slots['r1s2'].product_id = 'p01'
+    b.slots['r1s2'].lots = [Lot('a', 5, 80, 1)]
+    e.advance(1440)
+    b.advance(1440)
+    assert e.sold == b.sold and e.private_events == b.private_events
+    assert e.cogs == b.cogs and e.machine_cash == b.machine_cash
+
+def test_poisson_calibration_over_independent_ticks():
+    from vending.demand import sample
+    import math
+    means = [.05, .2]
+    for mean in means:
+        n = 10000
+        observed = sum(sample(55, 0, tick, mean) for tick in range(n))
+        # Six standard deviations: P(false rejection) is negligible, fixed seed.
+        assert abs(observed - n * mean) < 6 * math.sqrt(n * mean)
+
+def test_unstock_and_all_or_nothing(monkeypatch):
+    monkeypatch.setattr('vending.demand.sample', lambda *args: 0)
+    e = Engine(Scenario(), 0)
+    e.storage['p01'] = [Lot('a', 10, 80, 1)]
+    e.prices['p01'] = 100
+    e.execute('stock_items', dict(slot_id='r1s1', product_id='p01', quantity=8))
+    result = e.execute('stock_items', dict(slot_id='r1s1', product_id='p01', quantity=3))
+    assert result['result']['reason'] == 'slot_full'
+    assert e.slots['r1s1'].quantity == 8 and e.inventory()['p01']['quantity'] == 2
+    e.execute('unstock_items', dict(slot_id='r1s1', quantity=8))
+    assert e.slots['r1s1'].product_id is None and e.inventory()['p01']['quantity'] == 10
+    assert score(e)['inventory_value_cents'] == 800
