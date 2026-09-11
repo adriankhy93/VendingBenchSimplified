@@ -16,6 +16,7 @@ const money = value => typeof value === 'number' && Number.isFinite(value) ? new
 const number = value => typeof value === 'number' && Number.isFinite(value) ? new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 1
 }).format(value) : '—';
+const tokenNumber = (value, estimated=false) => `${number(value)}${estimated && value != null ? ' est.' : ''}`;
 const words = value => String(value ?? 'Unknown').replaceAll('_', ' ');
 const timeLabel = minute => `Day ${Math.floor(minute/1440)+1} · ${String(Math.floor(minute%1440/60)).padStart(2,'0')}:${String(minute%60).padStart(2,'0')}`;
 const seconds = value => typeof value === 'number' ? `${number(value)} s` : '—';
@@ -209,7 +210,8 @@ function renderDetail(d) {
     bars($('sales'), d.sales.sort((a, b) => b.quantity - a.quantity).map(p => [p.name, p.quantity]));
     bars($('action-mix'), Object.entries(d.action_counts).sort((a, b) => b[1] - a[1]).map(([a, n]) => [words(a), n]), true);
     renderMachine(d);
-    renderDays(d.day_events);
+    renderDays(d.day_events, d.tokens_by_day || []);
+    renderTokenDays(d);
     const selected = $('action-filter').value;
     $('action-filter').replaceChildren(new Option('All actions', ''), ...Object.keys(d.action_counts).sort().map(a => new Option(words(a), a)));
     $('action-filter').value = selected;
@@ -343,12 +345,27 @@ function renderMachine(d) {
     }
 }
 
-function renderDays(days) {
-    if (!days.length) return empty($('days'), 'No completed days recorded.');
-    const [t, body] = table(['Day', 'Units sold', 'Fee paid', 'Cash', 'Debt', 'Missed fees']);
+function renderTokenDays(d) {
+    const days = d.tokens_by_day || [];
+    const missing = d.unattributed_tokens?.model_calls || 0;
+    $('daily-token-note').textContent = missing ? `${number(d.unattributed_tokens.total_tokens)} tokens from ${number(missing)} legacy calls cannot be assigned to a day.` : !d.token_tracking_available ? 'Day attribution was not recorded for this older run.' : 'Usage is charged on the simulated day of the model decision. Timeout reservations are labeled as estimates.';
+    if (!days.length) return empty($('daily-tokens'), 'No daily usage recorded yet.');
+    const [t, body] = table(['Day', 'Model calls', 'Input tokens', 'Output tokens', 'Total tokens', 'Measurement']);
     for (const day of days) {
         const tr = node('tr');
-        [day.day, number(Object.values(day.sales || {}).reduce((a, b) => a + b, 0)), money(day.fee_paid_cents), money(day.cash_cents), money(day.fee_debt_cents), day.failure_streak].forEach(value => tr.append(node('td', '', value)));
+        [day.day, number(day.model_calls), tokenNumber(day.input_tokens, day.estimated), tokenNumber(day.output_tokens, day.estimated), tokenNumber(day.total_tokens, day.estimated), day.total_tokens == null ? 'Unavailable' : day.estimated ? 'Includes estimates' : day.model_calls ? 'Reported' : 'No model calls'].forEach(v => tr.append(node('td', '', v)));
+        body.append(tr);
+    }
+    $('daily-tokens').replaceChildren(t);
+}
+
+function renderDays(days, tokens) {
+    if (!days.length) return empty($('days'), 'No completed days recorded.');
+    const [t, body] = table(['Day', 'Units sold', 'Fee paid', 'Cash', 'Debt', 'Missed fees', 'Tokens']);
+    for (const day of days) {
+        const usage = tokens.find(row => row.day === day.day);
+        const tr = node('tr');
+        [day.day, number(Object.values(day.sales || {}).reduce((a, b) => a + b, 0)), money(day.fee_paid_cents), money(day.cash_cents), money(day.fee_debt_cents), day.failure_streak, tokenNumber(usage?.total_tokens, usage?.estimated)].forEach(value => tr.append(node('td', '', value)));
         body.append(tr);
     }
     $('days').replaceChildren(t);
@@ -369,7 +386,7 @@ async function loadActions() {
         $('actions-next').disabled = state.actionOffset + 50 >= data.total;
         $('actions-page').textContent = data.total ? `${state.actionOffset+1}–${Math.min(state.actionOffset+50,data.total)} of ${data.total}` : '0 actions';
         if (!data.actions.length) return empty($('action-table'), 'No matching actions recorded.');
-        const [t, body] = table(['#', 'Simulated time', 'Action', 'Outcome', 'Spendable', 'Units sold']);
+        const [t, body] = table(['#', 'Simulated time', 'Action', 'Outcome', 'Spendable', 'Units sold', 'Input tokens', 'Output tokens', 'Total tokens']);
         for (const entry of data.actions) {
             const r = entry.response || {},
                 result = r.result || {},
@@ -380,16 +397,20 @@ async function loadActions() {
             const actionCell = node('td');
             actionCell.append(button);
             tr.append(node('td', '', entry.index), node('td', '', clock ? timeLabel((clock.day - 1) * 1440 + clock.minute_of_day) : '—'), actionCell, node('td', '', words(r.error?.code || result.reason || result.outcome || r.state || 'Recorded')), node('td', '', money(r.metrics?.cash_cents)), node('td', '', number(r.metrics?.units_sold)));
+            const tokens = entry.token_usage || {};
+            tr.append(node('td', '', tokenNumber(tokens.input_tokens, tokens.estimated)), node('td', '', tokenNumber(tokens.output_tokens, tokens.estimated)), node('td', '', `${tokenNumber(tokens.total_tokens, tokens.estimated)}${tokens.attribution === 'shared_call' ? ' · shared' : ''}`));
             const detail = node('tr', 'action-detail');
             detail.hidden = true;
             const td = node('td');
-            td.colSpan = 6;
+            td.colSpan = 9;
             td.append(node('pre', '', JSON.stringify({
                 request: {
                     action: entry.action,
                     payload: entry.payload
                 },
-                response: entry.response
+                response: entry.response,
+                start_sim_time: entry.start_sim_time,
+                token_usage: entry.token_usage
             }, null, 2)));
             detail.append(td);
             button.addEventListener('click', () => {

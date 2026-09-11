@@ -94,3 +94,45 @@ def test_symlinks_and_traversal_do_not_expose_files(tmp_path):
 def test_empty_run_directory(tmp_path):
     with TestClient(create_app(tmp_path/'missing')) as c:
         assert c.get('/api/runs').json()['runs']==[]
+
+
+def test_daily_tokens_and_action_attribution(tmp_path):
+    path=write_run(tmp_path,complete=False)
+    config=json.loads((path/'config.json').read_text())|dict(agent='model',token_tracking_version=1)
+    (path/'config.json').write_text(json.dumps(config))
+    records=[json.loads(s) for s in (path/'actions.jsonl').read_text().splitlines()]
+    records[0]['token_usage']=dict(input_tokens=100,output_tokens=20,total_tokens=120,estimated=False,model_call=1,attribution='provider_call')
+    records[0]['start_sim_time']=dict(day=1,minute_of_day=0)
+    records[1]['token_usage']=dict(input_tokens=0,output_tokens=0,total_tokens=0,estimated=False,model_call=1,attribution='shared_call')
+    records[1]['start_sim_time']=dict(day=1,minute_of_day=5)
+    (path/'actions.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in records))
+    # An inference timeout on day two has usage even without a completed business day.
+    usage=[dict(call=1,input_tokens=100,output_tokens=20,sim_time=dict(day=1,minute_of_day=0)),
+           dict(call=2,input_tokens=200,output_tokens=30,estimated=True,sim_time=dict(day=2,minute_of_day=0))]
+    (path/'usage.jsonl').write_text(''.join(json.dumps(r)+'\n' for r in usage))
+    with TestClient(create_app(tmp_path)) as c:
+        d=c.get('/api/runs/run-a').json()
+        assert [row['total_tokens'] for row in d['tokens_by_day']]==[120,230]
+        assert d['tokens_by_day'][1]['estimated'] is True
+        assert d['tokens_by_day'][1]['estimated_input_tokens']==200
+        assert d['usage']['input_tokens']==300
+        actions=c.get('/api/runs/run-a/actions').json()['actions']
+        assert actions[0]['token_usage']['total_tokens']==120
+        assert actions[1]['token_usage']['attribution']=='shared_call'
+        assert 'Tokens by simulated day' in c.get('/').text
+
+
+def test_legacy_scripted_zeroes_and_unknown_model_usage(tmp_path):
+    path=write_run(tmp_path,complete=False)
+    store=RunStore(tmp_path)
+    assert store.actions('run-a')['actions'][0]['token_usage']['total_tokens']==0
+    assert store.detail('run-a')['tokens_by_day'][0]['total_tokens']==0
+    config=json.loads((path/'config.json').read_text())|dict(agent='model')
+    (path/'config.json').write_text(json.dumps(config))
+    (path/'usage.jsonl').write_text(json.dumps(dict(call=1,input_tokens=100,output_tokens=5))+'\n')
+    assert store.actions('run-a')['actions'][0]['token_usage']['total_tokens'] is None
+    detail=store.detail('run-a')
+    assert detail['tokens_by_day'][0]['total_tokens'] is None
+    assert detail['unattributed_tokens']['total_tokens']==105
+    assert detail['unattributed_tokens']['model_calls']==1
+    assert detail['token_tracking_available'] is False

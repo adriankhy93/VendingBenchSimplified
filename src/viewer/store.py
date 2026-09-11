@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
+from .tokens import DailyTokens, action_tokens
 
 class RunNotFound(ValueError):
     pass
@@ -107,10 +108,12 @@ class RunStore:
         path = self.run_path(run_id)
         item, config, summary, terminal = self.metadata(path)
         warnings = item['warnings']
+        token_days = DailyTokens(config)
         timeline, day_events, sold, action_counts, names = [], [], {}, {}, {}
         last_machine, last_inventory, last_response = None, None, None
         count = 0
         for record in self.records(path, 'actions.jsonl', warnings):
+            token_days.action(record)
             count += 1
             action = record.get('action', 'unknown')
             action_counts[action] = action_counts.get(action, 0) + 1
@@ -147,6 +150,7 @@ class RunStore:
         usage_totals = dict(calls=0, input_tokens=0, output_tokens=0)
         for record in self.records(path, 'usage.jsonl', warnings):
             usage_records.append(record)
+            token_days.usage(record)
             usage_totals['calls'] += 1
             usage_totals['input_tokens'] += record.get('input_tokens', 0)
             usage_totals['output_tokens'] += record.get('output_tokens', 0)
@@ -161,15 +165,17 @@ class RunStore:
                     sales=[dict(product_id=pid, name=names.get(pid, pid), quantity=qty) for pid, qty in sorted(sold.items())],
                     day_events=day_events, action_counts=action_counts, action_total=count,
                     machine=last_machine, inventory=last_inventory, product_names=names, memory=memory,
-                    usage_records=list(usage_records))
+                    usage_records=list(usage_records), tokens_by_day=token_days.rows(),
+                    token_tracking_available=token_days.available, unattributed_tokens=token_days.unattributed)
 
     def actions(self, run_id, action='', offset=0, limit=50):
         path = self.run_path(run_id)
         warnings, items, total = [], [], 0
+        config = self.read_json(path, 'config.json', warnings) or {}
         for index, record in enumerate(self.records(path, 'actions.jsonl', warnings), 1):
             if action and action != record.get('action'):
                 continue
             if offset <= total < offset + limit:
-                items.append(dict(index=index, **record))
+                items.append(dict(index=index, **(record | {'token_usage': action_tokens(record, config)})))
             total += 1
         return dict(actions=items, total=total, offset=offset, limit=limit, warnings=warnings)

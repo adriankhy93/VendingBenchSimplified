@@ -18,11 +18,25 @@ is required. It does not modify runs or advance simulated time.
 - Search runs by agent, environment, seed, or ID, and filter by completion state.
 - Inspect score/profit, sales, resource use, interactive cash charts, and the last
   observed machine inventory.
-- Expand action rows to see exact requests, outcomes, and sales events.
+- Expand action rows to see exact requests, outcomes, sales events, and input/output/total tokens.
+- Inspect token totals for each simulated day, including unfinished days and estimated usage.
 - Read effective configuration, model usage records, and the agent's notebook.
 - Enable auto-refresh to pick up new artifacts every five seconds. A run without
   a final summary is labeled **Unfinished**, since its log alone cannot prove it
   is still running.
+
+New runs record `start_sim_time` and `token_usage` in each action-log row, a
+simulated decision time in each usage-log row, and `usage.tokens_by_day` in the
+summary. Tokens are charged to the day the model made its decision, even if the
+action crosses midnight. A response requesting multiple actions is charged once
+to the first action; subsequent actions reference the same model call and show
+zero additional tokens. Failed/empty decisions and timeouts remain in the history;
+timeout reservations are labeled **estimated**. Input tokens include the full
+provider-reported context, not just the action's arguments.
+
+Scripted actions use zero tokens. Older model runs without action/day attribution
+show **—** instead of invented counts. Their original run-level totals remain
+visible. The new fields are picked up automatically for newly recorded runs.
 
 A truncated run's score is loaded from its trusted pre-deletion artifact when that
 file is available; otherwise the viewer shows the final score as unavailable.

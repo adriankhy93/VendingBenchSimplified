@@ -219,6 +219,9 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
                         raise
                     invalid += 1
                     continue
+                except Exception:
+                    record(action, payload, {'error':{'code':'action_response_unavailable'}})
+                    raise
                 invalid = 0
                 record(action, payload, latest)
                 if latest.get('state') != 'running':
