@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Vending · Run explorer</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+<header class="topbar"><a class="brand" href="/" aria-label="Vending run explorer"><span class="brand-mark">V</span><span>Vending <span class="brand-sub">/ Run explorer</span></span></a><div class="top-actions"><label class="auto"><input id="auto-refresh" type="checkbox"> Auto-refresh</label><button id="refresh" class="button">Refresh</button></div></header>
+<div class="workspace">
+  <aside class="sidebar" aria-label="Recorded runs">
+    <div class="sidebar-head"><div class="eyebrow">EXPERIMENTS</div><h1>Recorded runs <span id="run-count" class="count">0</span></h1><label class="sr-only" for="search">Search runs</label><input id="search" class="search" type="search" placeholder="Search agent, environment, seed…"><label class="sr-only" for="status-filter">Completion status</label><select id="status-filter"><option value="">All completion states</option><option value="completed">Completed</option><option value="budget_truncated">Budget truncated</option><option value="failed">Failed</option><option value="unfinished">Unfinished</option></select></div>
+    <div id="run-list" class="run-list" aria-live="polite"><p class="muted">Loading runs…</p></div>
+    <div class="pager"><button id="runs-prev" class="button" disabled>Previous</button><span id="runs-page" class="muted"></span><button id="runs-next" class="button" disabled>Next</button></div>
+    <p class="sidebar-note">Read-only view of your recorded experiments.</p>
+  </aside>
+  <main id="main">
+    <div id="error" class="notice error" role="alert" hidden></div>
+    <section id="empty" class="empty"><div class="empty-icon">▥</div><h2>Your experiments, in one place.</h2><p>Select a run to explore its performance and decisions.</p><p class="muted">Record a new run with:</p><code>./scripts/run_environment.sh smoke --agent negotiating</code></section>
+    <div id="run-detail" hidden>
+      <div class="detail-head"><div><div class="eyebrow" id="run-environment"></div><h2 id="run-title"></h2><div id="run-meta" class="muted"></div></div><span id="run-status" class="badge"></span></div>
+      <div id="warnings" class="notice" hidden></div>
+      <div id="score-note" class="small muted"></div>
+      <div id="metrics" class="metrics"></div>
+      <nav class="tabs" aria-label="Run sections"><button data-tab="overview" class="tab active" aria-current="page">Overview</button><button data-tab="actions" class="tab">Actions</button><button data-tab="configuration" class="tab">Configuration</button><button data-tab="memory" class="tab">Memory</button></nav>
+      <section id="overview" class="tab-panel">
+        <article class="card"><div class="card-head"><div><h3>Cash over time</h3><p class="muted small">Balances after recorded actions · simulated time</p></div><div class="legend"><span class="cash">Spendable</span><span class="machine">Machine</span><span class="debt">Fee debt</span></div></div><div id="chart"></div><div id="chart-readout" class="chart-readout muted" aria-live="polite">Move across the chart to inspect balances.</div></article>
+        <div class="two-column"><article class="card"><div class="card-head"><h3>Score breakdown</h3></div><div id="score-breakdown"></div></article><article class="card"><div class="card-head"><h3>Resource use</h3></div><div id="resource-use"></div></article></div>
+        <div class="two-column"><article class="card"><div class="card-head"><h3>Products sold</h3><span class="muted small">Realized sales</span></div><div id="sales"></div></article><article class="card"><div class="card-head"><h3>Action mix</h3></div><div id="action-mix"></div></article></div>
+        <article class="card"><div class="card-head"><div><h3>Machine snapshot</h3><p id="machine-time" class="muted small"></p></div></div><div id="machine-grid" class="machine-grid"></div></article>
+        <article class="card"><div class="card-head"><h3>Completed days</h3><span class="muted small">Latest 100 day summaries</span></div><div id="days" class="table-scroll"></div></article>
+      </section>
+      <section id="actions" class="tab-panel" hidden><article class="card"><div class="card-head"><div><h3>Action history</h3><p class="muted small">Expand a row to inspect the request and response.</p></div><label>Action <select id="action-filter"><option value="">All actions</option></select></label></div><div id="action-table" class="table-scroll"></div><div class="pager"><button id="actions-prev" class="button">Previous</button><span id="actions-page" class="muted"></span><button id="actions-next" class="button">Next</button></div></article></section>
+      <section id="configuration" class="tab-panel" hidden><article class="card"><div class="card-head"><div><h3>Effective configuration</h3><p class="muted small">Settings and definition recorded for this run.</p></div></div><pre id="config-json"></pre></article><article class="card"><div class="card-head"><h3>Usage records</h3><span class="muted small">Latest 1,000 model calls</span></div><pre id="usage-json"></pre></article></section>
+      <section id="memory" class="tab-panel" hidden><article class="card"><div class="card-head"><h3>Agent notebook</h3><span class="muted small">Recorded Markdown</span></div><pre id="memory-text"></pre></article></section>
+    </div>
+    <footer>Vending Bench · All amounts in USD · Viewing a run does not advance its simulation.</footer>
+  </main>
+</div>
+</body></html>

@@ -13,6 +13,7 @@ test = ["pytest==9.1.1"]
 model = ["anthropic==1.4.0"]
 
 [project.scripts]
+vending-view = "viewer.api:main"
 vending-run = "harness.runner:main"
 vending-benchmark = "harness.benchmark:main"
 
@@ -20,6 +21,7 @@ vending-benchmark = "harness.benchmark:main"
 where = ["src"]
 [tool.setuptools.package-data]
 vending = ["fixtures/*.json"]
+viewer = ["static/*"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
