@@ -5,6 +5,35 @@ agent harness. The engine implements [plan.md](plan.md) with the proposed defaul
 versioned as `1.0-proposal`. Benchmark environments last two real hours with no
 simulated-day cap; smoke environments have an explicit cap.
 
+## View runs in the browser
+
+```sh
+./scripts/view_runs.sh
+```
+
+Open **http://localhost:8080**. The viewer runs independently of the simulation
+service and reads existing artifacts from `./runs`; no database or frontend build
+is required. It does not modify runs or advance simulated time.
+
+- Search runs by agent, environment, seed, or ID, and filter by completion state.
+- Inspect score/profit, sales, resource use, interactive cash charts, and the last
+  observed machine inventory.
+- Expand action rows to see exact requests, outcomes, and sales events.
+- Read effective configuration, model usage records, and the agent's notebook.
+- Enable auto-refresh to pick up new artifacts every five seconds. A run without
+  a final summary is labeled **Unfinished**, since its log alone cannot prove it
+  is still running.
+
+A truncated run's score is loaded from its trusted pre-deletion artifact when that
+file is available; otherwise the viewer shows the final score as unavailable.
+The URL includes the selected run ID, so individual runs can be bookmarked.
+
+Use `./scripts/view_runs.sh --port 8081 --runs-dir /path/to/runs` to choose another
+port or artifact directory. If trusted summaries live elsewhere, add
+`--service-dir /path/to/service`. After reinstalling the editable package, the
+same viewer is available as `vending-view`. The viewer binds to loopback by default;
+`--host 0.0.0.0` is available for container port forwarding.
+
 ## Configure, generate, and choose an environment
 
 Edit [configs/environment.json](configs/environment.json), which explicitly lists all

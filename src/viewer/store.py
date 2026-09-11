@@ -1,4 +1,5 @@
 """Read existing artifacts without loading private demand logs or changing runs."""
+from collections import deque
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -142,10 +143,15 @@ class RunStore:
             if item['simulated_minutes'] is None:
                 item['simulated_minutes'] = last_point['minute']
             item['last_balances'] = last_response['metrics']
-        usage_records = list(self.records(path, 'usage.jsonl', warnings))
+        usage_records = deque(maxlen=1000)
+        usage_totals = dict(calls=0, input_tokens=0, output_tokens=0)
+        for record in self.records(path, 'usage.jsonl', warnings):
+            usage_records.append(record)
+            usage_totals['calls'] += 1
+            usage_totals['input_tokens'] += record.get('input_tokens', 0)
+            usage_totals['output_tokens'] += record.get('output_tokens', 0)
         if not item['usage']:
-            item['usage'] = dict(calls=len(usage_records), input_tokens=sum(r.get('input_tokens', 0) for r in usage_records),
-                                 output_tokens=sum(r.get('output_tokens', 0) for r in usage_records))
+            item['usage'] = usage_totals
         try:
             memory = self.file(path, 'memory.md').read_text()
         except (OSError, ValueError):
@@ -154,8 +160,8 @@ class RunStore:
         return dict(**item, config=config, terminal=terminal, summary=summary, timeline=timeline,
                     sales=[dict(product_id=pid, name=names.get(pid, pid), quantity=qty) for pid, qty in sorted(sold.items())],
                     day_events=day_events, action_counts=action_counts, action_total=count,
-                    machine=last_machine, inventory=last_inventory, memory=memory,
-                    usage_records=usage_records[-1000:])
+                    machine=last_machine, inventory=last_inventory, product_names=names, memory=memory,
+                    usage_records=list(usage_records))
 
     def actions(self, run_id, action='', offset=0, limit=50):
         path = self.run_path(run_id)
