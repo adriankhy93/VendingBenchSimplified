@@ -5,6 +5,53 @@ agent harness. The engine implements [plan.md](plan.md) with the proposed defaul
 versioned as `1.0-proposal`. Benchmark environments last two real hours with no
 simulated-day cap; smoke environments have an explicit cap.
 
+## Configure, generate, and choose an environment
+
+Edit [configs/environment.json](configs/environment.json), which explicitly lists all
+simulation settings, products, suppliers, and the seed. A full short-run example is
+[configs/environment-smoke.json](configs/environment-smoke.json).
+
+After installing the project dependencies, generate and run a named environment:
+
+```sh
+./scripts/generate_environment.sh configs/environment.json my-market
+./scripts/list_environments.sh
+./scripts/run_environment.sh my-market --agent negotiating
+```
+
+Generation creates `environments/my-market.json`. It embeds the complete configuration,
+seed, and resolved supplier quotes, and refuses to overwrite an existing name. Change
+the input config and generate another name to create a different experiment. Generation
+does not start the clock. Each run starts a fresh episode from the selected definition.
+
+`run_environment.sh` starts a loopback HTTP service on an available port, runs the agent,
+and stops the service afterward. No separately launched server is needed. The checked-in
+`default` and `smoke` environments are ready to select; for a quick run:
+
+```sh
+./scripts/run_environment.sh smoke --agent listed
+```
+
+Use `--agent model --model YOUR_MODEL_ID` for the optional configured provider. Additional
+runner options, such as `--config configs/harness-smoke.json`, control harness budgets and
+prompts. The selected saved environment supplies the seed, scenario, runtime, and day cap;
+harness defaults do not override those values. `--smoke` cannot override a saved definition.
+Scripts use `python3`; set `PYTHON_BIN` if your installed interpreter has another path.
+
+For an already running service, select the same saved name with:
+
+```sh
+python3 -m harness.runner --environment my-market --agent negotiating
+```
+
+Both processes read `./environments` by default. Use `--environments-dir PATH` on the
+runner and `VENDING_ENVIRONMENTS_DIR=PATH` on the service for another location. With a
+remote service, place identical copies of the selected file in both directories. A
+SHA-256 check rejects mismatched files. The evaluator copy and hash are recorded in
+run artifacts; private market parameters are kept out of the agent context.
+
+See [the configuration reference](docs/environments.md) for fields and validation rules.
+
 ## Run
 
 Python 3.12 or newer:
@@ -79,7 +126,9 @@ must be excluded. Keep this directory out of the agent context.
 | `GET /env/{id}/result` | `409` while running; immutable public summary after termination |
 | `DELETE /env/{id}` | Idempotent `204`, empty body |
 
-Creation accepts evaluator-only `scenario_id`, `seed`, `runtime_seconds`, and
+Creation accepts evaluator-only `environment_name` (and optional `environment_sha256`)
+to select a saved definition. These cannot be mixed with scenario overrides. Otherwise,
+creation accepts `scenario_id`, `seed`, `runtime_seconds`, and
 `max_days` (only for `smoke-v1`). Action schemas and durations are in
 [the plan](plan.md#action-schemas-and-durations) and [models.py](src/vending/models.py).
 Typed envelope documentation is also served at `/docs`.
@@ -94,7 +143,7 @@ a conflicting payload returns `409`. Lifecycle checks precede replay.
 
 ## Design and evaluation
 
-Supplier pairs have exactly 20 winner, 20 loser, and 60 balanced costs, with seeded
+The default supplier pairs have exactly 20 winner, 20 loser, and 60 balanced costs, with seeded
 variation and fixed patient/impatient/pushy-patient policies. Supplier types and
 minimums are private. Offers deliver immediately; stocking and prices take effect
 before action time advances. Five-minute PCG64 demand streams are keyed by seed,
