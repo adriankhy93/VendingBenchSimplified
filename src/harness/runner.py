@@ -12,6 +12,7 @@ from vending.models import ACTIONS
 from .agents import Idle, Baseline
 from .client import Client, ServiceError
 from .context import Context
+from .watchdog import decide, EnvironmentStopped
 
 class RunConfig(StrictModel):
     service_url: str = 'http://127.0.0.1:8000'
@@ -78,6 +79,7 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
     calls = input_tokens = output_tokens = invalid = 0
     cost, has_cost = 0., False
     reason, errors = 'error', []
+    action_latencies = []
     action_log = (directory / 'actions.jsonl').open('w')
     usage_log = (directory / 'usage.jsonl').open('w')
 
@@ -118,8 +120,15 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
                     break
                 calls += 1
                 try:
-                    decision = adapter.decide(messages, schemas, config.max_output_tokens,
-                                              min(config.model_timeout, max(.001, deadline-clock())))
+                    decision = decide(adapter, messages, schemas, config.max_output_tokens,
+                                      min(config.model_timeout, max(.001, deadline-clock())),
+                                      lambda: client.status(env_id, deadline)['state'], clock)
+                except EnvironmentStopped as exc:
+                    input_tokens += reserve
+                    output_tokens += config.max_output_tokens
+                    usage_log.write(json.dumps(dict(call=calls, input_tokens=reserve, output_tokens=config.max_output_tokens, estimated=True, error='environment_stopped'))+'\n')
+                    reason = exc.state
+                    break
                 except TimeoutError:
                     # A timed-out provider may have consumed unreported tokens.
                     input_tokens += reserve
@@ -176,7 +185,9 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
                     record('invalid_provider_response', {}, {'error':{'code':'invalid_action', 'message':'Select an allowed action with its exact schema.'}})
                     continue
                 try:
+                    action_started = clock()
                     latest = client.action(env_id, action, payload, deadline)
+                    action_latencies.append(clock() - action_started)
                 except ServiceError as exc:
                     record(action, payload, {'error':exc.error})
                     if exc.status in (409, 410, 500):
@@ -225,7 +236,9 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
                        classification='completed' if complete else ('failed' if reason in ('error','unavailable') else 'budget_truncated'),
                        terminal=terminal, last_public_snapshot=latest, errors=errors,
                        usage=dict(calls=calls, input_tokens=input_tokens, output_tokens=output_tokens,
-                                  cost_usd=cost if has_cost else None, wall_seconds=clock()-started),
+                                  cost_usd=cost if has_cost else None, wall_seconds=clock()-started,
+                                  action_latency_mean_seconds=sum(action_latencies)/len(action_latencies) if action_latencies else None,
+                                  action_latency_max_seconds=max(action_latencies, default=None)),
                        evaluator=dict(seed=config.seed, scenario_id=config.scenario_id),
                        truncated_accounting_artifact=f'{env_id}.json' if not terminal and env_id else None)
         (directory / 'summary.json').write_text(json.dumps(summary, indent=2))

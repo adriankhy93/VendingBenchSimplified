@@ -85,3 +85,15 @@ def test_context_is_bounded_and_memory_isolated(tmp_path):
         a.append('wait', {}, {'events':[{'type':'sales','product_id':'p01','quantity':2}]})
     assert len(a.history) == 2 and a.notebook['sales']['p01'] == 10
     assert b.memory == ''
+
+def test_watchdog_polls_during_model_call():
+    import time
+    from harness.watchdog import decide, EnvironmentStopped
+    class Slow:
+        def decide(self, *args):
+            time.sleep(1.1)
+            return Decision([])
+    with pytest.raises(EnvironmentStopped):
+        decide(Slow(), [], [], 10, 2, lambda:'ended')
+    with pytest.raises(TimeoutError):
+        decide(Slow(), [], [], 10, .01, lambda:'running')

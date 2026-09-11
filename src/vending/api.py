@@ -8,6 +8,7 @@ from pydantic import Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 from .config import Scenario, StrictModel
 from .registry import APIError, Registry
+from .models import ACTIONS
 
 class Create(StrictModel):
     scenario_id: str | None = None
@@ -103,12 +104,13 @@ def create_app(registry=None):
     @app.post('/env/{env_id}/{action}')
     async def action(env_id: str, action: str, request: Request):
         # Resolve lifecycle before parsing to keep terminal/unknown-action precedence.
-        entry = registry.lookup(env_id)
-        with entry.lock:
-            registry.check(env_id, entry)
-            from .models import ACTIONS
-            if action not in ACTIONS or entry.state != 'running':
-                return registry.action(env_id, action, {}, request.headers.get('Idempotency-Key'))
+        def preflight():
+            entry = registry.lookup(env_id)
+            with entry.lock:
+                registry.check(env_id, entry)
+                if action not in ACTIONS or entry.state != 'running':
+                    registry.action(env_id, action, {}, request.headers.get('Idempotency-Key'))
+        await run_in_threadpool(preflight)
         try:
             payload = await body(request)
         except APIError:

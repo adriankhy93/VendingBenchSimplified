@@ -78,6 +78,7 @@ class Registry:
         engine = entry.engine
         engine.state, engine.reason = state, reason
         summary = engine.summary(complete=state == "ended")
+        summary["committed_action_count"] = engine.action_count
         summary["wall_duration_seconds"] = max(0, self.clock() - entry.created)
         entry.state, entry.terminal, entry.finished = state, summary, self.clock()
         entry.engine = None
@@ -152,7 +153,7 @@ class Registry:
                 # Private latent demand is streamed separately and not retained in live state.
                 if staged.private_events:
                     with (self.artifact_dir / f"{env_id}.private.jsonl").open('a') as stream:
-                        stream.write(''.join(json.dumps(event) + '\n' for event in staged.private_events))
+                        stream.write(''.join(json.dumps(dict(action_id=response['action_id'], **event)) + '\n' for event in staged.private_events))
                     staged.private_events.clear()
                 # I/O can itself cross the deadline; never commit business state afterward.
                 if self.clock() >= entry.deadline:
@@ -183,7 +184,7 @@ class Registry:
                     self.finish(env_id, entry, "ended", "real_deadline")
                 else:
                     summary = entry.engine.summary(complete=False)
-                    summary.update(termination_reason="deleted_while_running", wall_duration_seconds=self.clock() - entry.created)
+                    summary.update(committed_action_count=entry.engine.action_count, termination_reason="deleted_while_running", wall_duration_seconds=self.clock() - entry.created)
                     self.artifact(env_id, entry, summary)
             entry.deleted = True
             entry.engine = None
