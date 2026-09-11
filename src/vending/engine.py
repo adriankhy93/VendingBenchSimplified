@@ -1,7 +1,7 @@
 """Pure, staged business simulation. Lifecycle deadlines belong to the registry."""
 from collections import Counter
 from dataclasses import asdict
-from .config import Scenario, products
+from .config import Scenario
 from .models import ACTIONS, DomainValidation, Lot, Slot, transfer
 from .suppliers import build_quotes, negotiate
 from . import demand
@@ -10,9 +10,9 @@ from .scoring import score
 class Engine:
     def __init__(self, config: Scenario, seed: int):
         self.config, self.seed = config, seed
-        self.products = {p.id: p for p in products()}
-        self.quotes = build_quotes(list(self.products.values()), seed)
-        self.slots = {f"r{r}s{s}": Slot(f"r{r}s{s}") for r in range(1, 5) for s in range(1, 4)}
+        self.products = {p.id: p for p in config.products}
+        self.quotes = build_quotes(list(self.products.values()), seed, config)
+        self.slots = {f"r{r}s{s}": Slot(f"r{r}s{s}") for r in range(1, config.machine_rows + 1) for s in range(1, config.slots_per_row + 1)}
         self.storage = {p: [] for p in self.products}
         self.prices = {}
         self.cash, self.machine_cash, self.debt = config.starting_cash_cents, 0, 0
@@ -41,7 +41,7 @@ class Engine:
 
     def bounds(self, pid):
         ref = self.products[pid].reference_price_cents
-        return (ref + 3) // 4, ref * 5
+        return (ref * self.config.min_price_percent + 99) // 100, ref * self.config.max_price_percent // 100
 
     def balance(self):
         return dict(cash_cents=self.cash, machine_cash_cents=self.machine_cash, fee_debt_cents=self.debt)
@@ -60,14 +60,15 @@ class Engine:
         return dict(products=[dict(product_id=p.id, name=p.name, reference_price_cents=p.reference_price_cents,
                                    min_price_cents=self.bounds(p.id)[0], max_price_cents=self.bounds(p.id)[1])
                               for p in self.products.values() if product_id in (None, p.id)],
-                    suppliers=[f"s{s:02}" for s in range(1, 11)],
+                    suppliers=[s.id for s in self.config.suppliers],
                     quotes=[q.public() for q in self.quotes.values() if product_id in (None, q.product_id)])
 
     def observe(self):
         return dict(scenario_version=self.config.version, **self.catalog(), **self.balance(), **self.machine(), storage=self.inventory(),
                     purchases=list(self.purchase_history),
                     rules=dict(durations=self.config.durations, slot_capacity=self.config.slot_capacity,
-                               quantity_cap=self.config.quantity_cap, daily_fee_cents=self.config.daily_fee_cents,
+                               machine_rows=self.config.machine_rows, slots_per_row=self.config.slots_per_row,
+                               tick_minutes=self.config.tick_minutes, quantity_cap=self.config.quantity_cap, daily_fee_cents=self.config.daily_fee_cents,
                                failure_limit=self.config.failure_limit, max_days=self.config.max_days,
                                runtime_seconds=self.config.runtime_seconds, deadline_utc=self.deadline_utc,
                                scoring="cash + machine cash + inventory at acquisition cost - fee debt",
@@ -94,7 +95,7 @@ class Engine:
                     self.purchase_history.append(dict(purchase_id=buy, **args))
             elif result["outcome"] == "counteroffer":
                 result.update(supplier_id=sid, product_id=pid, quantity=qty)
-            if q.kind == "pushy-patient":
+            if q.kind == "pushy-patient" and len(self.products) > 1:
                 other = next(p for p in self.products if p != pid)
                 result["upsell"] = self.quotes[sid, other].public()
         elif action == "set_price":
@@ -132,12 +133,15 @@ class Engine:
 
     def advance(self, minutes):
         events, sales = [], Counter()
-        for _ in range(minutes // 5):
-            tick = self.minute // 5
-            multiplier = self.config.day_multipliers[(self.minute // 1440) % 7]
+        step = self.config.tick_minutes
+        if minutes < 0 or minutes % step:
+            raise ValueError("advancement must be a nonnegative tick multiple")
+        for _ in range(minutes // step):
+            tick = self.minute // step
+            multiplier = self.config.day_multipliers[(self.minute // 1440) % len(self.config.day_multipliers)]
             for index, (pid, p) in enumerate(self.products.items()):
                 price = self.prices.get(pid, p.reference_price_cents)
-                count = demand.sample(self.seed, index, tick, demand.expected_daily(p, price, multiplier) * 5 / 1440)
+                count = demand.sample(self.seed, index, tick, demand.expected_daily(p, price, multiplier) * step / 1440)
                 available = sum(s.quantity for s in self.slots.values() if s.product_id == pid)
                 sold = min(available, count)
                 self.stockouts[pid] += count - sold
@@ -158,7 +162,7 @@ class Engine:
                 self.sold[pid] += sold
                 self.today[pid] += sold
                 sales[pid] += sold
-            self.minute += 5
+            self.minute += step
             if self.minute % 1440 == 0:
                 arrears = min(self.cash, self.debt)
                 self.cash -= arrears

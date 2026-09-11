@@ -60,9 +60,9 @@ class Baseline:
                 buy = max(0, needed - stored)
                 # Preserve a day's fee and reserve listed cost until negotiation is known.
                 reserve_price = terms['listed'] if terms['price'] == 1 else terms['price']
-                buy = min(buy, max(0, cash - 200) // reserve_price)
+                buy = min(buy, result['rules']['quantity_cap'], max(0, cash - result['rules']['daily_fee_cents']) // reserve_price)
                 cash -= buy * reserve_price
-                stock = min(needed, stored + buy)
+                stock = min(needed, stored + buy, result['rules']['quantity_cap'])
                 result['storage'][pid]['quantity'] = max(0, stored - stock)
                 if buy:
                     self.queue.append(('make_offer', dict(supplier_id=terms['supplier_id'], product_id=pid,

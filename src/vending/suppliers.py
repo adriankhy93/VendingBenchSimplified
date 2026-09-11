@@ -13,20 +13,32 @@ class Quote:
         return dict(supplier_id=self.supplier_id, product_id=self.product_id,
                     unit_price_cents=self.listed)
 
-def build_quotes(products, seed):
+def build_quotes(products, seed, config=None):
+    from .config import Scenario
+    config = config or Scenario()
     rng = np.random.Generator(np.random.PCG64(np.random.SeedSequence([seed, 1])))
-    labels = ["winner"] * 20 + ["loser"] * 20 + ["balanced"] * 60
+    categories = ['winner', 'loser', 'balanced']
+    total_pairs = len(products) * len(config.suppliers)
+    total_weight = sum(config.category_weights.values())
+    counts = {c: total_pairs * config.category_weights[c] // total_weight for c in categories}
+    # Largest remainder allocation is exact for any catalog size; ties use category order.
+    remainder_order = sorted(categories, key=lambda c: -(total_pairs * config.category_weights[c] % total_weight))
+    for category in remainder_order[:total_pairs - sum(counts.values())]:
+        counts[category] += 1
+    labels = [c for c in categories for _ in range(counts[c])]
     rng.shuffle(labels)
-    kinds = ["patient"] * 4 + ["impatient"] * 3 + ["pushy-patient"] * 3
-    factors = dict(winner=80, loser=120, balanced=95)
     quotes = {}
-    for s, kind in enumerate(kinds, 1):
+    overrides = {(q.supplier_id, q.product_id): q for q in config.supplier_quotes}
+    for supplier in config.suppliers:
         for p in products:
             category = labels.pop()
-            # Integer parts per million avoid floating-point currency calculations.
-            variation = int(rng.integers(980000, 1020001))
-            minimum = (p.reference_price_cents * factors[category] * variation + 50000000) // 100000000
-            q = Quote(f"s{s:02}", p.id, category, minimum, (minimum * 125 + 99) // 100, kind)
+            variation = int(rng.integers(config.cost_variation_min_ppm, config.cost_variation_max_ppm + 1))
+            minimum = max(1, (p.reference_price_cents * config.category_cost_percent[category] * variation + 50000000) // 100000000)
+            listed = (minimum * config.listed_price_percent + 99) // 100
+            override = overrides.get((supplier.id, p.id))
+            if override:
+                category, minimum, listed = override.category, override.minimum_cents, override.listed_cents
+            q = Quote(supplier.id, p.id, category, minimum, listed, supplier.kind)
             quotes[q.supplier_id, p.id] = q
     return quotes
 
