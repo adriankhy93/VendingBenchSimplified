@@ -14,6 +14,7 @@ from .agents import Idle, Baseline
 from .client import Client, ServiceError
 from .context import Context
 from .watchdog import decide, EnvironmentStopped
+from .usage import TokenLedger
 
 class RunConfig(StrictModel):
     service_url: str = 'http://127.0.0.1:8000'
@@ -74,7 +75,7 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
     run_id = uuid.uuid4().hex
     directory = Path(config.artifact_dir) / run_id
     directory.mkdir(parents=True)
-    effective = config.model_dump(mode='json') | {'file_hashes': {p: hashlib.sha256(t.encode()).hexdigest() for p, t in contents.items()}, 'run_id':run_id}
+    effective = config.model_dump(mode='json') | {'file_hashes': {p: hashlib.sha256(t.encode()).hexdigest() for p, t in contents.items()}, 'run_id':run_id, 'token_tracking_version':1}
     if saved:
         effective['environment_definition'] = saved.model_dump(mode='json')
         effective['environment_sha256'] = definition_hash
@@ -92,13 +93,18 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
     cost, has_cost = 0., False
     reason, errors = 'error', []
     action_latencies = []
+    token_ledger = TokenLedger()
     action_log = (directory / 'actions.jsonl').open('w')
     usage_log = (directory / 'usage.jsonl').open('w')
 
     def record(action, payload, response):
-        action_log.write(json.dumps(dict(action=action, payload=payload, response=response)) + '\n')
+        action_log.write(json.dumps(dict(action=action, payload=payload, response=response, **token_ledger.action(response))) + '\n')
         action_log.flush()
         context.append(action, payload, response)
+
+    def record_usage(input_count, output_count, **metadata):
+        usage_log.write(json.dumps(token_ledger.provider(calls, input_count, output_count, **metadata)) + '\n')
+        usage_log.flush()
 
     try:
         options = dict(scenario_id=config.scenario_id, seed=config.seed, runtime_seconds=config.runtime_seconds, max_days=config.max_days)
@@ -140,16 +146,16 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
                 except EnvironmentStopped as exc:
                     input_tokens += reserve
                     output_tokens += config.max_output_tokens
-                    usage_log.write(json.dumps(dict(call=calls, input_tokens=reserve, output_tokens=config.max_output_tokens, estimated=True, error='environment_stopped'))+'\n')
+                    record_usage(reserve, config.max_output_tokens, estimated=True, error='environment_stopped')
                     reason = exc.state
                     break
                 except TimeoutError:
                     # A timed-out provider may have consumed unreported tokens.
                     input_tokens += reserve
                     output_tokens += config.max_output_tokens
-                    usage_log.write(json.dumps(dict(call=calls, input_tokens=reserve, output_tokens=config.max_output_tokens, estimated=True, error='provider_timeout'))+'\n')
+                    record_usage(reserve, config.max_output_tokens, estimated=True, error='provider_timeout')
                     invalid += 1
-                    context.append('provider_error', {}, {'error':{'code':'provider_timeout'}})
+                    record('provider_error', {}, {'error':{'code':'provider_timeout'}})
                     continue
                 if decision.input_tokens < 0 or decision.output_tokens < 0:
                     raise ValueError('negative provider usage')
@@ -158,9 +164,7 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
                 if decision.cost_usd is not None:
                     has_cost = True
                     cost += decision.cost_usd
-                usage_log.write(json.dumps(dict(call=calls, input_tokens=decision.input_tokens,
-                                               output_tokens=decision.output_tokens, cost_usd=decision.cost_usd))+'\n')
-                usage_log.flush()
+                record_usage(decision.input_tokens, decision.output_tokens, cost_usd=decision.cost_usd)
                 state = client.status(env_id, deadline)['state']
                 if state != 'running':
                     reason = state
@@ -228,6 +232,8 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
         errors.append(type(exc).__name__)
         reason = 'error'
     finally:
+        if token_ledger.pending:
+            record('provider_no_action', {}, {'error':{'code':reason}})
         if env_id:
             cleanup_deadline = max(deadline, clock() + config.request_timeout)
             try:
@@ -250,6 +256,7 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
                        classification='completed' if complete else ('failed' if reason in ('error','unavailable') else 'budget_truncated'),
                        terminal=terminal, last_public_snapshot=latest, errors=errors,
                        usage=dict(calls=calls, input_tokens=input_tokens, output_tokens=output_tokens,
+                                  total_tokens=input_tokens+output_tokens, tokens_by_day=token_ledger.by_day(),
                                   cost_usd=cost if has_cost else None, wall_seconds=clock()-started,
                                   action_latency_mean_seconds=sum(action_latencies)/len(action_latencies) if action_latencies else None,
                                   action_latency_max_seconds=max(action_latencies, default=None)),
