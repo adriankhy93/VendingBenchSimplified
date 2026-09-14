@@ -16,6 +16,7 @@ model = ["anthropic==1.4.0"]
 vending-view = "viewer.api:main"
 vending-run = "harness.runner:main"
 vending-benchmark = "harness.benchmark:main"
+vending-server = "vending.server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

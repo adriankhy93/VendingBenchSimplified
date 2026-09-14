@@ -36,9 +36,10 @@ class Entry:
     definition: dict | None = None
 
 class Registry:
-    def __init__(self, scenario=None, clock=time.monotonic, artifact_dir="runs/service", environments_dir="environments"):
+    def __init__(self, scenario=None, clock=time.monotonic, artifact_dir="runs/service", environments_dir="environments", default_seed=None):
         self.environments_dir = Path(environments_dir)
         self.scenario = scenario or Scenario()
+        self.default_seed = default_seed
         self.clock = clock
         self.entries = {}
         self.lock = threading.RLock()
@@ -68,7 +69,7 @@ class Registry:
             if options.get("scenario_id") == "benchmark-v1" and "max_days" not in options:
                 config["max_days"] = None
             config = Scenario.model_validate(config)
-            seed = options.get("seed", secrets.randbits(63))
+            seed = options.get("seed", self.default_seed if self.default_seed is not None else secrets.randbits(63))
         started = self.clock()
         engine = Engine(config, seed)
         engine.deadline_utc = (datetime.now(timezone.utc) + timedelta(seconds=config.runtime_seconds)).isoformat()

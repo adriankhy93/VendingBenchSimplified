@@ -103,8 +103,16 @@ Python 3.12 or newer:
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install -e '.[test]'
-uvicorn vending.api:app --host 127.0.0.1 --port 8000
+bash start_env.sh configs/environment.json
 ```
+
+`start_env.sh` starts the REST service on `127.0.0.1:8000`. It accepts either a
+direct `Scenario` JSON file such as `configs/smoke.json`, or an environment
+configuration such as `configs/environment.json` containing `seed` and `scenario`.
+For the latter, an empty `POST /env` uses the configured seed; clients can still
+provide a different seed or allowed runtime override in the request body. Set
+`VENDING_HOST`, `VENDING_PORT`, `VENDING_ARTIFACT_DIR`, or
+`VENDING_ENVIRONMENTS_DIR` before the command to change server settings.
 
 In another terminal, activate the same environment and run from the repository root:
 
