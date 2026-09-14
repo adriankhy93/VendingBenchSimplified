@@ -216,29 +216,35 @@ persistence, distributed workers, or external logistics.
 
 ## Local Qwen with vLLM
 
-Run `/storage/models/Qwen3.5-2B` through the model harness using the
-[launch instructions and diagnostic configuration](docs/qwen-vllm.md).
-Actual diagnostic results are recorded alongside that guide.
+The agent harness uses [Pi](https://pi.dev/) and a single
+[vending-machine skill](.pi/skills/vending-machine/SKILL.md). The skill is the
+only simulation-specific context supplied to Pi: it documents the public REST
+API, action payloads, responses, and lifecycle rules. Pi receives only `read`
+and `bash` tools, so it invokes the documented API with `curl`; there is no
+Python decision loop, hidden product-selection policy, or evaluator access.
 
-The model harness loads [harness.md](harness.md) as operating instructions. It
-blocks repeated refused calls, retains compact timestamped public state, and offers
-run-local Markdown memory tools when `enable_memory` is true (enabled in the Qwen
-configuration). Notes live in `runs/<run_id>/memory/`; use `list_memory`,
-`read_memory`, and `write_memory_file` to manage them on demand.
+Start the simulation service and local vLLM server in separate terminals:
 
-New run folders use UTC timestamps and readable model/environment names, for example
-`2026-09-11_10-30-00--qwen3-5-2b--smoke--a1b2c3d4`. A short random suffix
-prevents collisions. Add an experiment label with:
-
-```bash
-./scripts/run_environment.sh smoke --config configs/harness-qwen-vllm.json --run-name recovery-memory
+```sh
+bash start_env.sh configs/environment.json
+./scripts/serve_qwen_vllm.sh
 ```
 
-This produces `YYYY-MM-DD_HH-MM-SS--recovery-memory--<suffix>`. The viewer shows
-experiment labels (or model names), environment and date for both old and new runs.
-Existing run folders and their links remain valid.
+Then start an interactive Pi agent:
 
-Model runs also save `llm_traces.jsonl`: full native provider requests/responses,
-parsed decisions, and error/watchdog events, correlated to usage by `call_id`.
-See [the trace format and limitations](harness.md#llm-traces). These artifacts
-include prompts and returned model text, but exclude transport headers and credentials.
+```sh
+./scripts/install_pi.sh  # once; downloads project-local Node and Pi
+./scripts/run_pi_agent.sh
+```
+
+`run_pi_agent.sh` uses the project-local Pi and Node installations in `.tools/`,
+the `vending-vllm/qwen3.5-2b` model in [.pi/agent/models.json](.pi/agent/models.json),
+and the loopback vLLM endpoint at `http://127.0.0.1:8001/v1`. Set
+`VENDING_API_URL` when the simulation service uses a different URL. Pi's session
+history is its model trace; use `/export` or its session JSONL for inspection.
+
+Pi sessions are saved in `runs/pi-sessions/`, which is ignored by Git. Each JSONL
+session records model messages, tool calls, tool results, and token usage. The
+previous custom Python model runner, [harness.md](harness.md), and
+`llm_traces.jsonl` remain only for historical runs; they are no longer the
+recommended model-agent path.

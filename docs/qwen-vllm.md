@@ -1,25 +1,27 @@
-# Local Qwen harness with vLLM
+# Qwen through Pi and vLLM
 
 Tested with `/storage/models/Qwen3.5-2B`, vLLM 0.29.0, and one H200.
 The server runs locally without a hosted-model API key. Install vLLM in your GPU
 Python environment separately; it is not a dependency of the simulation service.
 
-Start the model server in one terminal:
+Install Pi once, then start the model and simulation servers in separate terminals:
 
 ```bash
+./scripts/install_pi.sh
 ./scripts/serve_qwen_vllm.sh
+bash start_env.sh configs/environment.json
 ```
 
-Wait for `Application startup complete`, then run the saved smoke environment:
+Wait for both servers to start, then launch Pi:
 
 ```bash
-./scripts/run_environment.sh smoke --config configs/harness-qwen-vllm.json
-./scripts/view_runs.sh
+./scripts/run_pi_agent.sh
 ```
 
-Open http://localhost:8080 to inspect actions, refusals, scores, and tokens by action
-and day. Run artifacts are stored in `runs/<run_id>/`. Select another saved
-scenario by replacing `smoke` with its name in `environments/`.
+Pi reads only `.pi/skills/vending-machine/SKILL.md` for simulation-specific
+instructions and calls the public API through `curl`. Its session JSONL traces are
+saved in `runs/pi-sessions/`. To use a non-default API URL, set
+`VENDING_API_URL` before launching Pi.
 
 The launch script defaults to GPU 1, 10% GPU memory utilization, a 16,384-token
 context, one concurrent sequence, text-only inference, and eager execution.
@@ -36,32 +38,21 @@ VLLM_GPU=0 VLLM_PORT=8002 VLLM_GPU_MEMORY_UTILIZATION=0.20 \
 are also configurable. Extra script arguments pass through to vLLM. The server
 binds to loopback and uses offline model loading. Stop it with Ctrl-C when finished.
 
-The harness config selects `provider: vllm` and the served model name
-`qwen3.5-2b`. Nested `vllm` settings control the endpoint, temperature, top-p,
-top-k, presence penalty, generation seed, thinking, and tool choice. This
-integration uses native function calls, reconstructs tool-result history, and
-executes model-selected actions through the existing HTTP simulation client.
-The model receives public observations only.
+Pi's project-local model definition is `.pi/agent/models.json`. It selects the
+`vending-vllm/qwen3.5-2b` OpenAI-compatible endpoint with the configured
+temperature, top-p, top-k, and presence penalty. Pi provides only `read` and
+`bash` tools to the agent. It runs from an empty agent workspace and receives no
+project context files; the Pi skill is its sole vending-specific capability.
 
-The provided diagnostic config requires a tool call, disables thinking, retains
-six recent action/result pairs, limits output to 512 tokens per decision, and
-allows **500,000 total tokens**. This is a diagnostic allowance, not the proposed
-100,000-token participant budget. The saved smoke environment still sets its
-120-second deadline and 14-day cap. The harness reserves space conservatively
-before inference, so budget truncation can occur below the exact token ceiling.
-
-Token counts come from vLLM's prompt/completion usage, including cached prompt
-tokens once. These feed the existing per-action and per-day ledgers; inference
-is not retried automatically after a timeout. Local inference has no reported USD
-cost. A successful connection does not imply a profitable or completed episode.
+Pi reports provider token usage in its session JSONL. Local inference has no
+reported USD cost. A successful connection does not imply a profitable or
+completed episode.
 
 The server's tool parser follows the [Qwen model instructions](https://huggingface.co/Qwen/Qwen3.5-2B)
 and [vLLM tool-calling protocol](https://docs.vllm.ai/en/latest/features/tool_calling/).
-The current harness loads [harness.md](../harness.md), includes loop recovery,
-uses compact public context, and enables on-demand Markdown memory tools.
-The measurements below precede these improvements.
-
-See [measured results](qwen-vllm-results.json) for the initial real-model diagnostics.
+The results below are historical measurements from the retired custom Python
+harness and are retained for comparison only. See
+[measured results](qwen-vllm-results.json).
 
 ## Observed behavior (2026-09-11)
 

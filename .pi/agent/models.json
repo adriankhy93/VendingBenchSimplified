@@ -1,0 +1,30 @@
+{
+  "providers": {
+    "vending-vllm": {
+      "baseUrl": "http://127.0.0.1:8001/v1",
+      "api": "openai-completions",
+      "apiKey": "local",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "qwen3.5-2b",
+          "name": "Qwen3.5 2B through local vLLM",
+          "reasoning": false,
+          "input": ["text"],
+          "contextWindow": 16384,
+          "maxTokens": 512,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "samplingParams": {
+            "temperature": 0.7,
+            "top_p": 0.8,
+            "top_k": 20,
+            "presence_penalty": 0
+          }
+        }
+      ]
+    }
+  }
+}

@@ -4,3 +4,8 @@ __pycache__/
 .venv/
 runs/
 .env
+.tools/
+.pi/agent/auth.json
+.pi/agent/models-store.json
+.pi/agent/sessions/
+.pi/workspace/
