@@ -17,6 +17,7 @@ from .client import Client, ServiceError
 from .context import Context
 from .watchdog import decide, EnvironmentStopped
 from .usage import TokenLedger
+from .traces import TraceWriter, TracedAdapter
 from .vllm_provider import VLLMSettings
 from .tool_descriptions import TOOL_DESCRIPTIONS
 
@@ -111,6 +112,7 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
     reason, errors = 'error', []
     action_latencies = []
     token_ledger = TokenLedger()
+    trace = TraceWriter(directory / 'llm_traces.jsonl') if config.agent == 'model' else None
     action_log = (directory / 'actions.jsonl').open('w')
     usage_log = (directory / 'usage.jsonl').open('w')
 
@@ -157,16 +159,18 @@ def run(config: RunConfig, adapter=None, client=None, clock=time.monotonic):
                     break
                 calls += 1
                 try:
-                    decision = decide(adapter, messages, schemas, config.max_output_tokens,
+                    decision = decide(TracedAdapter(adapter, trace, calls), messages, schemas, config.max_output_tokens,
                                       min(config.model_timeout, max(.001, deadline-clock())),
                                       lambda: client.status(env_id, deadline)['state'], clock)
                 except EnvironmentStopped as exc:
+                    trace.write(calls, 'watchdog_stop', reason=exc.state)
                     input_tokens += reserve
                     output_tokens += config.max_output_tokens
                     record_usage(reserve, config.max_output_tokens, estimated=True, error='environment_stopped')
                     reason = exc.state
                     break
                 except TimeoutError:
+                    trace.write(calls, 'watchdog_stop', reason='timeout')
                     # A timed-out provider may have consumed unreported tokens.
                     input_tokens += reserve
                     output_tokens += config.max_output_tokens

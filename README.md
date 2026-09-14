@@ -229,3 +229,8 @@ prevents collisions. Add an experiment label with:
 This produces `YYYY-MM-DD_HH-MM-SS--recovery-memory--<suffix>`. The viewer shows
 experiment labels (or model names), environment and date for both old and new runs.
 Existing run folders and their links remain valid.
+
+Model runs also save `llm_traces.jsonl`: full native provider requests/responses,
+parsed decisions, and error/watchdog events, correlated to usage by `call_id`.
+See [the trace format and limitations](harness.md#llm-traces). These artifacts
+include prompts and returned model text, but exclude transport headers and credentials.

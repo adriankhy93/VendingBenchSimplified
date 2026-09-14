@@ -4,6 +4,7 @@ Contract: https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview
 """
 import json
 from .agents import Decision
+from .traces import emit
 
 class AnthropicAdapter:
     def __init__(self, model, client=None):
@@ -36,10 +37,12 @@ class AnthropicAdapter:
             else:
                 converted.append(message)
                 index += 1
+        body = dict(model=self.model, system=system, messages=converted, tools=tools,
+                    tool_choice={'type':'any', 'disable_parallel_tool_use':True}, max_tokens=max_output_tokens)
+        emit('provider_request', provider='anthropic', body=body)
         try:
-            response = self.client.messages.create(model=self.model, system=system, messages=converted,
-                                                   tools=tools, tool_choice={'type':'any', 'disable_parallel_tool_use':True},
-                                                   max_tokens=max_output_tokens, timeout=timeout)
+            response = self.client.messages.create(**body, timeout=timeout)
+            emit('provider_response', provider='anthropic', body=response.model_dump(mode='json'))
         except self.sdk.APITimeoutError as exc:
             raise TimeoutError('provider timeout') from exc
         usage = response.usage

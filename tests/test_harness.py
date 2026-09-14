@@ -57,6 +57,8 @@ def test_fake_invalid_memory_and_terminal(tmp_path):
     directory, summary = run(RunConfig(agent='model', scenario_id='smoke-v1', max_days=1, enable_memory=True, artifact_dir=str(tmp_path)), fake, client)
     assert summary['complete'] and summary['usage']['calls'] == 4
     assert (directory/'memory.md').read_text() == 'learned'
+    traces = [json.loads(x) for x in (directory/'llm_traces.jsonl').read_text().splitlines()]
+    assert [x['call_id'] for x in traces if x['event']=='harness_request'] == [1,2,3,4]
     assert len([x for x in (directory/'actions.jsonl').read_text().splitlines() if json.loads(x)['action'] == 'end_day']) == 1
     assert not registry.entries
     client.close()

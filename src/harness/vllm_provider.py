@@ -9,6 +9,7 @@ import httpx
 from pydantic import Field
 from vending.config import StrictModel
 from .agents import Decision
+from .traces import emit
 
 class VLLMSettings(StrictModel):
     base_url: str = 'http://127.0.0.1:8001/v1'
@@ -59,13 +60,16 @@ class VLLMAdapter:
                     max_tokens=max_output_tokens, temperature=options.temperature,
                     top_p=options.top_p, top_k=options.top_k, presence_penalty=options.presence_penalty,
                     seed=options.generation_seed, chat_template_kwargs=dict(enable_thinking=options.enable_thinking))
+        emit('provider_request', provider='vllm', body=body)
         try:
             # No automatic retry: an ambiguous inference may already have consumed tokens.
             response = self.client.post('chat/completions', json=body, timeout=timeout)
         except httpx.TimeoutException as exc:
             raise TimeoutError('vLLM inference timeout') from exc
+        emit('provider_status', status_code=response.status_code)
         response.raise_for_status()
         data = response.json()
+        emit('provider_response', provider='vllm', body=data)
         usage = data['usage']
         input_tokens, output_tokens = usage['prompt_tokens'], usage['completion_tokens']
         if any(type(n) is not int or n < 0 for n in (input_tokens, output_tokens)):

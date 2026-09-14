@@ -41,3 +41,27 @@ advance time; use get_inventory, get_machine and get_balance when needed.
 The harness does not select products for you or run a hidden discovery subagent.
 Record your shortlist in products.md, and read it when choosing purchases. This
 keeps discovery under your control and avoids repeatedly sending the full market.
+
+## LLM traces
+
+Every model run writes llm_traces.jsonl beside actions.jsonl and usage.jsonl.
+Records use call_id to match the call field in usage.jsonl (and model_call in action token records) and carry
+UTC timestamps. harness_request captures the context supplied to the adapter;
+provider_request captures the native request body (messages, tool schemas and
+sampling settings); provider_response retains the complete parsed provider JSON,
+including returned text, tool arguments, finish reasons and usage, before action
+validation. decision records the normalized tool calls. Custom adapters still get
+harness_request and decision records; native payload capture is implemented in
+both the vLLM and Anthropic adapters.
+
+Error records contain exception types, not exception messages or headers. HTTP
+failure bodies are omitted; vLLM HTTP status codes are recorded. watchdog_stop
+marks a timeout or environment stop. A late response can still be appended if the
+worker finishes while the process is alive; a killed process may leave only a
+request. A response record does not mean its tool call was executed—actions.jsonl
+is the execution record. Provider-returned reasoning fields are retained when
+present; hidden internal reasoning is not available.
+
+Traces contain full prompts, tool results and any memory read into context. They
+do not log transport credentials or headers. Existing runs cannot be backfilled
+with exact provider responses; this applies to newly started runs.
