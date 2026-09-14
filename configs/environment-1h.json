@@ -1,0 +1,7 @@
+{
+  "seed": 0,
+  "scenario": {
+    "scenario_id": "benchmark-v1",
+    "runtime_seconds": 3600
+  }
+}

@@ -28,6 +28,12 @@ def test_server_accepts_repository_environment_configuration():
     assert seed == 0
 
 
+def test_server_accepts_one_hour_environment_configuration():
+    scenario, seed = load_server_config("configs/environment-1h.json")
+    assert scenario.runtime_seconds == 3600
+    assert seed == 0
+
+
 @pytest.mark.parametrize("value", ["[]", "{", '{"unknown": true}'])
 def test_server_rejects_invalid_configuration(tmp_path, value):
     path = tmp_path / "bad.json"
