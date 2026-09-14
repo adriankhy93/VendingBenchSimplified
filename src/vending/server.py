@@ -27,9 +27,12 @@ def load_server_config(path):
     if not isinstance(data, dict):
         raise ValueError("configuration must be a JSON object")
     try:
+        # Validate the original JSON rather than the parsed Python object. Strict
+        # Pydantic models intentionally accept JSON arrays for tuple fields but
+        # reject Python lists, which is the correct behavior for config files.
         if "scenario" not in data:
-            return Scenario.model_validate(data), None
-        config = (SavedEnvironment if "format_version" in data else EnvironmentConfig).model_validate(data)
+            return Scenario.model_validate_json(raw), None
+        config = (SavedEnvironment if "format_version" in data else EnvironmentConfig).model_validate_json(raw)
         return config.scenario, config.seed
     except ValidationError as exc:
         raise ValueError("configuration is not a valid vending scenario") from exc

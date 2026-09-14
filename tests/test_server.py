@@ -22,6 +22,12 @@ def test_server_accepts_direct_scenario_and_environment_config(tmp_path):
         assert client.get(f"/env/{created.json()['env_id']}/status").json() == {"state": "running"}
 
 
+def test_server_accepts_repository_environment_configuration():
+    scenario, seed = load_server_config("configs/environment.json")
+    assert scenario.scenario_id == "benchmark-v1"
+    assert seed == 0
+
+
 @pytest.mark.parametrize("value", ["[]", "{", '{"unknown": true}'])
 def test_server_rejects_invalid_configuration(tmp_path, value):
     path = tmp_path / "bad.json"
