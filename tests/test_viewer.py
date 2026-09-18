@@ -399,3 +399,82 @@ def test_pi_live_profit_counts_inventory_machine_cash_and_debt():
     assert RunStore.pi_live_score(actions[:2] + actions[3:]) == {}
     actions[-1]["response"]["metrics"]["machine_cash_cents"] = 0
     assert RunStore.pi_live_score(actions)["net_profit_cents"] == -490
+
+
+def test_structured_pi_trace_matches_legacy_and_retains_terminal_result(tmp_path):
+    from vending.engine import Engine
+    from vending.config import Scenario
+
+    engine = Engine(Scenario(scenario_id='smoke-v1', max_days=1), 7)
+    quote = engine.quotes['s01', 'p01']
+    requests = [
+        ('observe', {}),
+        ('set_price', dict(product_id='p01', unit_price_cents=150)),
+        ('make_offer', dict(supplier_id='s01', product_id='p01', quantity=10,
+                            unit_price_cents=quote.minimum)),
+        ('stock_items', dict(slot_id='r1s1', product_id='p01', quantity=7)),
+        ('get_inventory', {}),
+        ('end_day', {}),
+    ]
+    records = [dict(action=action, payload=payload, response=engine.execute(action, payload))
+               for action, payload in requests]
+    sessions = tmp_path / 'pi-sessions'
+    sessions.mkdir()
+
+    def write_trace(name, structured):
+        messages = []
+
+        def add(record):
+            call_id = f'call-{len(messages)}'
+            arguments = (dict(action=record['action'], payload=record['payload']) if structured else
+                         dict(command=f"curl -X POST http://localhost/env/env_abc/{record['action']} -d '{json.dumps(record['payload'])}'"))
+            messages.append(dict(type='message', message=dict(role='assistant', content=[dict(
+                type='toolCall', id=call_id, name='vending' if structured else 'bash', arguments=arguments)])))
+            output = dict(request=dict(action=record['action'], payload=record['payload']),
+                          response=record['response']) if structured else record['response']
+            messages.append(dict(type='message', message=dict(role='toolResult', toolCallId=call_id,
+                content=[dict(type='text', text=json.dumps(output))])))
+        for record in records:
+            add(record)
+        if structured:
+            add(records[-1])  # Replay must not duplicate sales, actions, or purchases.
+            add(dict(action='result', payload={}, response=engine.summary()))
+            add(dict(action='delete', payload={}, response={}))
+        (sessions / f'{name}.jsonl').write_text('\n'.join(map(json.dumps, messages)))
+
+    write_trace('legacy', False)
+    write_trace('structured', True)
+    store = RunStore(tmp_path)
+    legacy, structured = store.detail('pi-legacy'), store.detail('pi-structured')
+    for key in ['daily_activity', 'sales', 'inventory', 'machine', 'live_score', 'score', 'action_total']:
+        assert legacy[key] == structured[key]
+    assert structured['action_total'] == len(records)
+    assert structured['summary'] == engine.summary()
+    assert structured['classification'] == 'completed'
+    assert structured['inventory']['storage']['p01']['quantity'] == 3
+
+
+def test_structured_local_blocks_and_uncertain_requests_are_not_actions(tmp_path):
+    sessions = tmp_path / 'pi-sessions'
+    sessions.mkdir()
+    messages = []
+    for i, output in enumerate([dict(blocked=True), dict(transport_error='network')]):
+        messages.extend([
+            dict(type='message', message=dict(role='assistant', content=[dict(
+                type='toolCall', id=str(i), name='vending', arguments=dict(action='stock_items', payload={}))])),
+            dict(type='message', message=dict(role='toolResult', toolCallId=str(i), content=[dict(
+                type='text', text=json.dumps(output))])),
+        ])
+    (sessions / 'blocked.jsonl').write_text('\n'.join(map(json.dumps, messages)))
+    assert RunStore(tmp_path).detail('pi-blocked')['action_total'] == 0
+
+
+def test_terminal_checkpoint_survives_missing_tool_result(tmp_path):
+    sessions = tmp_path / 'pi-sessions'
+    sessions.mkdir()
+    terminal = dict(state='ended', termination_reason='real_deadline', score=dict(score_cents=50000))
+    (sessions / 'checkpoint.jsonl').write_text(json.dumps(dict(
+        type='custom', customType='vending-controller-v1', data=dict(terminal=terminal))) + '\n')
+    detail = RunStore(tmp_path).detail('pi-checkpoint')
+    assert detail['classification'] == 'completed'
+    assert detail['score'] == terminal['score']

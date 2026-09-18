@@ -197,10 +197,25 @@ persistence, distributed workers, or external logistics.
 
 The agent harness uses [Pi](https://pi.dev/) and a single
 [vending-machine skill](.pi/skills/vending-machine/SKILL.md). The skill is the
-only simulation-specific context supplied to Pi: it documents the public REST
-API, action payloads, responses, and lifecycle rules. Pi receives only `read`
-and `bash` tools, so it invokes the documented API with `curl`; there is no
-Python decision loop, hidden product-selection policy, or evaluator access.
+simulation-specific instruction source, injected by the extension. Pi receives
+only the structured `vending` tool; shell and file tools are disabled. The tool
+owns the environment ID and enforces a daily controller using public API data.
+The model selects products and permitted price experiments; the controller bounds
+stocking, replenishment, fee reserves, and negotiation. Default policy constants
+are in `.pi/lib/vending-controller.mjs`.
+
+Each tool call makes at most one HTTP request and returns `controller.permitted_actions`.
+Quantities in those actions are maxima. Successful actions update the persisted
+controller state. An uncertain business request can be retried once with the same
+idempotency key; uncertain creation halts instead of creating another environment.
+On resume, the controller checks status and reconciles observations. Terminal
+results are fetched before deletion and remain in the session trace.
+
+The viewer reads both historical curl traces and new structured-tool traces.
+Start a fresh Pi session when upgrading from curl: old sessions have no controller
+checkpoint and halt on resume rather than silently creating another environment.
+Controller behavior is covered by `python3 -m pytest tests/test_pi_harness.py`;
+install local Node and Pi first to include the executable extension tests.
 
 Start the simulation service and local vLLM server in separate terminals:
 

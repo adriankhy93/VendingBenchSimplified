@@ -102,6 +102,7 @@ class RunStore:
             warnings.append(f"{name} could not be read.")
 
     def pi_data(self, path, warnings):
+        terminal, seen_actions = None, set()
         model, created_at, pending, actions, usage = (
             None,
             None,
@@ -120,6 +121,10 @@ class RunStore:
                         )
                         continue
                     created_at = created_at or record.get("timestamp")
+                    if record.get("type") == "custom" and record.get("customType") == "vending-controller-v1":
+                        saved_terminal = (record.get("data") or {}).get("terminal")
+                        if isinstance(saved_terminal, dict) and saved_terminal.get("score"):
+                            terminal = saved_terminal
                     if record.get("type") == "model_change":
                         model = record.get("modelId", model)
                     message = record.get("message") or {}
@@ -131,10 +136,16 @@ class RunStore:
                         usage["input_tokens"] += call_usage.get("input", 0) or 0
                         usage["output_tokens"] += call_usage.get("output", 0) or 0
                         for content in message.get("content") or []:
-                            if (
-                                content.get("type") != "toolCall"
-                                or content.get("name") != "bash"
-                            ):
+                            if content.get("type") != "toolCall":
+                                continue
+                            if content.get("name") == "vending":
+                                args = content.get("arguments") or {}
+                                pending[content.get("id")] = dict(
+                                    action=args.get("action"), payload=args.get("payload") or {},
+                                    structured=True,
+                                )
+                                continue
+                            if content.get("name") != "bash":
                                 continue
                             command = (content.get("arguments") or {}).get(
                                 "command", ""
@@ -165,10 +176,32 @@ class RunStore:
                             response = json.loads(text)
                         except ValueError:
                             response = {}
+                        structured = request.pop("structured", False)
+                        if structured:
+                            if not isinstance(response, dict) or "response" not in response:
+                                continue  # Locally blocked or uncertain; no confirmed action.
+                            response = response["response"]
+                        if not isinstance(response, dict):
+                            continue
+                        if request["action"] == "result":
+                            if "score" in response:
+                                terminal = response
+                            continue
+                        if request["action"] in {"create", "status", "delete"}:
+                            continue
+                        action_id = response.get("action_id")
+                        if structured and not action_id:
+                            continue  # HTTP failures did not commit a business action.
+                        if action_id:
+                            if action_id in seen_actions:
+                                continue  # A retried idempotent request is one action.
+                            seen_actions.add(action_id)
+                        if response.get("state") == "ended" and response.get("score"):
+                            terminal = response
                         actions.append(dict(**request, response=response))
         except OSError:
             warnings.append("Pi session could not be read.")
-        return dict(model=model, created_at=created_at, actions=actions, usage=usage)
+        return dict(model=model, created_at=created_at, actions=actions, usage=usage, terminal=terminal)
 
     @staticmethod
     def pi_inventory_value(actions):
@@ -279,6 +312,7 @@ class RunStore:
     def pi_metadata(self, path):
         warnings = []
         data = self.pi_data(path, warnings)
+        terminal = data.get("terminal") or {}
         return (
             dict(
                 run_id=self.pi_run_id(path),
@@ -288,15 +322,15 @@ class RunStore:
                 environment="live API session",
                 seed=None,
                 scenario_version=None,
-                classification="unfinished",
-                reason=None,
+                classification=("completed" if terminal.get("state") == "ended" else "failed") if terminal else "unfinished",
+                reason=terminal.get("termination_reason"),
                 created_at=data["created_at"]
                 or datetime.fromtimestamp(
                     path.stat().st_mtime, timezone.utc
                 ).isoformat(),
-                score={},
-                score_source=None,
-                simulated_minutes=None,
+                score=terminal.get("score") or {},
+                score_source="terminal" if terminal.get("score") else None,
+                simulated_minutes=terminal.get("simulated_minutes"),
                 usage=data["usage"],
                 errors=[],
                 warnings=warnings,
@@ -427,11 +461,12 @@ class RunStore:
                         )
                     )
             if last_response:
-                item["simulated_minutes"] = timeline[-1]["minute"]
+                if item["simulated_minutes"] is None:
+                    item["simulated_minutes"] = timeline[-1]["minute"]
                 item["last_balances"] = last_response["metrics"]
             item["inventory_value_cents"] = self.pi_inventory_value(data["actions"])
             item["live_score"] = self.pi_live_score(data["actions"])
-            if last_response and last_response.get("score"):
+            if last_response and last_response.get("score") and not item["score"]:
                 item["score"] = last_response["score"]
                 item["score_source"] = "terminal"
                 item["classification"] = "completed"
@@ -439,8 +474,8 @@ class RunStore:
             return dict(
                 **item,
                 config={},
-                terminal={},
-                summary=None,
+                terminal=data.get("terminal") or {},
+                summary=data.get("terminal"),
                 timeline=timeline,
                 **activity.fields(),
                 action_counts=action_counts,

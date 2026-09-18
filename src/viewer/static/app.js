@@ -212,6 +212,7 @@ function renderDetail(d) {
     bars($('sales'), d.sales.sort((a, b) => b.quantity - a.quantity).map(p => [p.name, p.quantity]));
     bars($('action-mix'), Object.entries(d.action_counts).sort((a, b) => b[1] - a[1]).map(([a, n]) => [words(a), n]), true);
     renderMachine(d);
+    renderInventory(d);
     renderActivity(d);
     renderDays(d.day_events, d.tokens_by_day || []);
     renderTokenDays(d);
@@ -346,6 +347,34 @@ function renderMachine(d) {
         card.append(label, node('div', 'slot-name', slot.product_id ? (names[slot.product_id] ?? slot.product_id) : 'Empty slot'), node('div', 'slot-quantity', `${slot.quantity} / ${slot.capacity} units`));
         target.append(card);
     }
+}
+
+function renderInventory(d) {
+    const target = $('storage-inventory');
+    const snapshot = d.inventory;
+    if (!snapshot) {
+        $('storage-time').textContent = '';
+        return empty(target, 'No storage snapshot recorded yet.');
+    }
+    const clock = snapshot.sim_time;
+    $('storage-time').textContent = `Items in storage, outside the machine. ${clock ? `Last observed ${timeLabel((clock.day - 1) * 1440 + clock.minute_of_day)}. ` : ''}Stock may have changed afterward.`;
+    const entries = Object.entries(snapshot.storage || {}).filter(([, item]) => item.quantity > 0);
+    if (!entries.length) return empty(target, 'Storage was empty at the last observation.');
+    const names = {...d.product_names};
+    for (const product of d.config.environment_definition?.scenario?.products ?? []) names[product.id] = product.name;
+    const [t, body] = table(['Product', 'Units in storage', 'Acquisition cost']);
+    let units = 0, cost = 0;
+    for (const [pid, item] of entries.sort(([a], [b]) => a.localeCompare(b))) {
+        const tr = node('tr');
+        [names[pid] || pid, number(item.quantity), money(item.acquisition_cost_cents)].forEach(value => tr.append(node('td', '', value)));
+        body.append(tr);
+        units += item.quantity;
+        cost = cost == null || item.acquisition_cost_cents == null ? null : cost + item.acquisition_cost_cents;
+    }
+    const total = node('tr');
+    ['Total in storage', number(units), money(cost)].forEach(value => total.append(node('td', 'data-value', value)));
+    body.append(total);
+    target.replaceChildren(t);
 }
 
 function renderTokenDays(d) {

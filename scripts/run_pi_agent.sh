@@ -26,8 +26,7 @@ mkdir -p "$workspace" "$PI_CODING_AGENT_SESSION_DIR"
 cd -- "$workspace"
 
 exec "$pi_bin" --approve --no-context-files --no-extensions -e "$project_dir/.pi/extensions/vending-guard.js" --no-prompt-templates \
-  --no-skills --skill "$project_dir/.pi/skills/vending-machine" \
-  --tools read,bash --provider vending-vllm --model qwen3.5-2b --api-key local \
+  --no-skills --no-tools --provider vending-vllm --model qwen3.5-2b --api-key local \
   --thinking off --name vending-machine \
-  --system-prompt "You are an autonomous HTTP API agent. Read the vending-machine skill before acting. The API base URL for this run is $api_url. Use only the skill's documented HTTP workflow. Never inspect files outside the agent workspace. Do not ask the user questions or wait for further instructions: choose actions from public API results and continue independently until the environment ends or becomes unavailable. Keep the full env_id returned by POST /env, including its env_ prefix, and call observe as POST /env/{env_id}/observe with an empty JSON body {}. Never send product_id or unit_price_cents to observe; those belong to set_price and make_offer." \
-  "$@" -- "The server is already running at $api_url. Create a fresh environment with POST $api_url/env; do not use ENV_ID literally. Immediately call observe as POST $api_url/env/{env_id}/observe with an empty JSON body {} and the returned env_... id, then operate the environment only through the documented API. Choose a profitable strategy from public information, keep taking actions without requesting user input until the environment ends or becomes unavailable, then delete the environment."
+  --system-prompt "You are an autonomous vending agent. The extension provides the vending skill and structured vending tool. Use only that tool and follow its controller.permitted_actions. Do not ask for user input. Continue until the controller reaches done or halted. Explain decisions briefly using public information." \
+  "$@" -- "Create a fresh environment through the vending tool with action create and payload {}. Follow the controller through initialization, daily operation, and terminal result retrieval before deletion. Do not stop between days."
