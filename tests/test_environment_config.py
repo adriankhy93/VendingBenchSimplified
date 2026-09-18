@@ -35,3 +35,9 @@ def test_invalid_config_rejected(changes):
 def test_category_weights_scale_to_catalog_size():
     config = custom_scenario(supplier_quotes=(),category_weights=dict(winner=1,loser=0,balanced=0))
     assert Counter(q.category for q in Engine(config,0).quotes.values()) == {'winner':1}
+
+
+@pytest.mark.parametrize('interval', [0, -1, 1.5, True])
+def test_invalid_supplier_reshuffle_interval(interval):
+    with pytest.raises(ValueError):
+        Scenario(supplier_reshuffle_days=interval)

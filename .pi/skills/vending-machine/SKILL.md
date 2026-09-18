@@ -22,7 +22,7 @@ Lifecycle endpoints are `POST /env`, `GET /env/ENV_ID/status`, and `DELETE /env/
 
 1. First call must be `POST /env`.
 2. Save returned `env_id` exactly, including `env_` prefix.
-3. Call `observe` immediately after creation.
+3. Call `POST /env/ENV_ID/observe` with an empty JSON body `{}` immediately after creation.
 4. Operate only while status is `running`.
 5. On `ended` or `unavailable`, stop action calls and `DELETE /env/ENV_ID`.
 
@@ -42,7 +42,7 @@ Follow this finite-state controller. Prefer one action per decision.
 ```mermaid
 flowchart LR
   Start([Start]) --> Create[POST /env]
-  Create --> Observe[observe]
+  Create --> Observe[POST /env/ENV_ID/observe]
   Observe --> Running{state running?}
   Running -- no --> Stop[Stop actions]
   Running -- yes --> Init[set_price -> make_offer -> stock_items]
@@ -65,6 +65,8 @@ flowchart LR
   ## Daily policy
 
   1. `observe` once at startup, then cache `result.rules`, slots, products, suppliers, balances.
+  1. `observe` means `POST /env/ENV_ID/observe`; keep the full `env_...` id unchanged.
+  1. `observe` uses `{}` only; do not send pricing or product fields to it.
   2. Choose up to four products with best listed cost relative to reference price.
   3. For each selected product: `set_price` -> accepted `make_offer` -> `stock_items`.
   4. Use `end_day` to advance to settlement; avoid repeated `wait` before first settlement.

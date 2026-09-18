@@ -13,10 +13,12 @@ class Quote:
         return dict(supplier_id=self.supplier_id, product_id=self.product_id,
                     unit_price_cents=self.listed)
 
-def build_quotes(products, seed, config=None):
+def build_quotes(products, seed, config=None, epoch=0):
     from .config import Scenario
     config = config or Scenario()
-    rng = np.random.Generator(np.random.PCG64(np.random.SeedSequence([seed, 1])))
+    # Keep the original market unchanged; later periods have independent streams.
+    entropy = [seed, 1] if epoch == 0 else [seed, 1, epoch]
+    rng = np.random.Generator(np.random.PCG64(np.random.SeedSequence(entropy)))
     categories = ['winner', 'loser', 'balanced']
     total_pairs = len(products) * len(config.suppliers)
     total_weight = sum(config.category_weights.values())
@@ -28,7 +30,8 @@ def build_quotes(products, seed, config=None):
     labels = [c for c in categories for _ in range(counts[c])]
     rng.shuffle(labels)
     quotes = {}
-    overrides = {(q.supplier_id, q.product_id): q for q in config.supplier_quotes}
+    # Explicit and saved quotes define the initial market, not permanent prices.
+    overrides = {(q.supplier_id, q.product_id): q for q in config.supplier_quotes} if epoch == 0 else {}
     for supplier in config.suppliers:
         for p in products:
             category = labels.pop()

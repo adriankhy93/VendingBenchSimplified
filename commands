@@ -7,7 +7,7 @@ Start the local model server in a second terminal:
 Start Pi in a third terminal:
 ./scripts/install_pi.sh   # once
 ./scripts/run_pi_agent.sh
-Pi will read the vending SKILL.md, create an environment with POST /env, and call its actions through the REST API.
+Pi will read the vending SKILL.md, create an environment with POST /env, and call `POST /env/{env_id}/observe` with an empty JSON body `{}` before any other action. Keep the returned `env_...` id unchanged and call its actions through the REST API.
 While Pi is running, its terminal is the live view. Its full trace is saved as JSONL under:
 runs/pi-sessions/
 To make a shareable visual trace, use Pi’s /export command before quitting:

@@ -188,8 +188,10 @@ function renderDetail(d) {
     $('warnings').hidden = !notices.length;
     $('score-note').textContent = d.score_source === 'pre_deletion' ? 'Score from the trusted pre-deletion snapshot. This run did not complete naturally.' : d.score_source === 'terminal' ? `Ended: ${words(d.reason)}.` : 'Final score unavailable; balances and sales below reflect recorded actions.';
     const score = d.score || {};
+    const profit = score.net_profit_cents ?? d.live_score?.net_profit_cents;
+    const profitNote = score.net_profit_cents != null ? 'Relative to starting cash' : d.live_score?.net_profit_cents != null ? 'Live · assets minus debt and starting cash' : 'Starting balance or complete history unavailable';
     const sold = d.sales.reduce((n, p) => n + p.quantity, 0);
-    $('metrics').replaceChildren(metric('Final score', money(score.score_cents), 'Cash + inventory − debt'), metric('Net profit', money(score.net_profit_cents), 'Relative to starting cash', score.net_profit_cents > 0 ? 'positive' : score.net_profit_cents < 0 ? 'negative' : ''), metric('Units sold', number(sold), `${d.sales.length} products with sales`), metric('Simulated days', number((d.simulated_minutes ?? 0) / 1440), `${number(d.action_total)} recorded actions`));
+    $('metrics').replaceChildren(metric('Final score', money(score.score_cents), 'Cash + inventory − debt'), metric('Net profit', money(profit), profitNote, profit > 0 ? 'positive' : profit < 0 ? 'negative' : ''), metric('Units sold', number(sold), `${d.sales.length} products with sales`), metric('Simulated days', number((d.simulated_minutes ?? 0) / 1440), `${number(d.action_total)} recorded actions`));
     renderChart(d.timeline);
     rows($('score-breakdown'), [
         ['Spendable cash', money(score.cash_cents ?? d.last_balances?.cash_cents)],
@@ -210,6 +212,7 @@ function renderDetail(d) {
     bars($('sales'), d.sales.sort((a, b) => b.quantity - a.quantity).map(p => [p.name, p.quantity]));
     bars($('action-mix'), Object.entries(d.action_counts).sort((a, b) => b[1] - a[1]).map(([a, n]) => [words(a), n]), true);
     renderMachine(d);
+    renderActivity(d);
     renderDays(d.day_events, d.tokens_by_day || []);
     renderTokenDays(d);
     const selected = $('action-filter').value;
@@ -357,6 +360,22 @@ function renderTokenDays(d) {
         body.append(tr);
     }
     $('daily-tokens').replaceChildren(t);
+}
+
+function renderActivity(d) {
+    const days = d.daily_activity || [];
+    if (!days.length) return empty($('daily-activity'), 'No daily activity recorded yet.');
+    const names = d.product_names || {};
+    const [t, body] = table(['Day', 'Actions', 'Bought', 'Purchase cost', 'Sold', 'Cash collected']);
+    for (const day of days) {
+        const tr = node('tr');
+        const bought = day.purchases.map(p => `${number(p.quantity)} × ${names[p.product_id] || p.product_id} (${money(p.total_cents)})`).join('; ');
+        const sold = Object.entries(day.sales).filter(([, qty]) => qty > 0).map(([pid, qty]) => `${number(qty)} × ${names[pid] || pid}`).join('; ');
+        const actions = Object.entries(day.actions).map(([action, count]) => `${words(action)} × ${count}`).join('; ');
+        [String(day.day) + (day.completed ? '' : ' · unfinished'), actions || '—', bought || '—', money(day.purchase_cost_cents), sold || '—', money(day.collected_cents)].forEach(value => tr.append(node('td', '', value)));
+        body.append(tr);
+    }
+    $('daily-activity').replaceChildren(t);
 }
 
 function renderDays(days, tokens) {

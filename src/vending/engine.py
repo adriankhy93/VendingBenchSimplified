@@ -131,6 +131,7 @@ class Engine:
                 daily_fee_cents=self.config.daily_fee_cents,
                 failure_limit=self.config.failure_limit,
                 max_days=self.config.max_days,
+                supplier_reshuffle_days=self.config.supplier_reshuffle_days,
                 runtime_seconds=self.config.runtime_seconds,
                 deadline_utc=self.deadline_utc,
                 scoring="cash + machine cash + inventory at acquisition cost - fee debt",
@@ -280,6 +281,12 @@ class Engine:
                 self.state, self.reason = "ended", "smoke_day_cap"
             if self.state == "ended":
                 break
+            if day % self.config.supplier_reshuffle_days == 0:
+                self.quotes = build_quotes(
+                    list(self.products.values()), self.seed, self.config,
+                    epoch=day // self.config.supplier_reshuffle_days,
+                )
+                events.append(dict(type="supplier_reshuffle", day=day + 1))
         return [
             dict(type="sales", product_id=p, quantity=n) for p, n in sales.items() if n
         ] + events
@@ -301,6 +308,8 @@ class Engine:
         # Read actions expose the resulting state, including incidental sales.
         if action == "observe":
             result = self.observe()
+        elif action == "search_products":
+            result = self.catalog(args.get("product_id"))
         elif action == "get_balance":
             result = self.balance()
         elif action == "get_inventory":

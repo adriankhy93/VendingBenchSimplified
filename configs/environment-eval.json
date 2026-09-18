@@ -166,6 +166,7 @@
     "cost_variation_min_ppm": 990000,
     "cost_variation_max_ppm": 1030000,
     "listed_price_percent": 135,
+    "supplier_reshuffle_days": 30,
     "supplier_quotes": []
   }
 }

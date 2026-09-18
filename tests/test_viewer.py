@@ -323,3 +323,79 @@ def test_legacy_scripted_zeroes_and_unknown_model_usage(tmp_path):
     assert detail["unattributed_tokens"]["total_tokens"] == 105
     assert detail["unattributed_tokens"]["model_calls"] == 1
     assert detail["token_tracking_available"] is False
+
+
+def test_daily_activity_crosses_midnight_without_double_counting():
+    from viewer.activity import Activity
+
+    activity = Activity()
+    activity.add(dict(action="make_offer", payload=dict(product_id="p01", quantity=10),
+                      response=dict(sim_time=dict(day=1, minute_of_day=75), elapsed_minutes=75,
+                                    result=dict(outcome="accepted", total_cents=800))))
+    activity.add(dict(action="make_offer", payload=dict(product_id="p01", quantity=10),
+                      response=dict(sim_time=dict(day=1, minute_of_day=150), elapsed_minutes=75,
+                                    result=dict(outcome="rejected"))))
+    activity.add(dict(action="end_day", response=dict(
+        sim_time=dict(day=2, minute_of_day=0), elapsed_minutes=1290,
+        events=[dict(type="sales", product_id="p01", quantity=3),
+                dict(type="day", day=1, sales=dict(p01=3))])))
+    activity.add(dict(action="get_machine", response=dict(
+        sim_time=dict(day=2, minute_of_day=5), elapsed_minutes=5,
+        result=dict(slots=[], prices={}, products=[dict(product_id="p01", name="Water")]),
+        events=[dict(type="sales", product_id="p01", quantity=2)])))
+    fields = activity.fields()
+    first, second = fields["daily_activity"]
+    assert first["actions"] == dict(make_offer=2, end_day=1)
+    assert first["purchase_cost_cents"] == 800
+    assert len(first["purchases"]) == 1
+    assert first["completed"] and first["sales"] == dict(p01=3)
+    assert not second["completed"] and second["sales"] == dict(p01=2)
+    assert fields["sales"] == [dict(product_id="p01", name="Water", quantity=5)]
+    assert fields["machine"]["slots"] == []
+
+
+def test_pi_daily_activity_matches_saved_run(tmp_path):
+    path = write_run(tmp_path)
+    records = [json.loads(line) for line in (path / "actions.jsonl").read_text().splitlines()]
+    records[-1]["response"]["events"].append(dict(type="day", day=1, sales=dict(p01=5)))
+    (path / "actions.jsonl").write_text("\n".join(map(json.dumps, records)))
+    sessions = tmp_path / "pi-sessions"
+    sessions.mkdir()
+    messages = []
+    for index, record in enumerate(records):
+        messages.extend([
+            dict(type="message", message=dict(role="assistant", content=[dict(
+                type="toolCall", name="bash", id=str(index), arguments=dict(
+                    command=f"curl -X POST http://localhost/env/env_abc/{record['action']} -d '{{}}'"))])),
+            dict(type="message", message=dict(role="toolResult", toolCallId=str(index),
+                                              content=[dict(type="text", text=json.dumps(record["response"]))])),
+        ])
+    (sessions / "daily.jsonl").write_text("\n".join(map(json.dumps, messages)))
+    store = RunStore(tmp_path)
+    pi, saved = store.detail("pi-daily"), store.detail("run-a")
+    for key in ["sales", "day_events", "daily_activity", "machine", "inventory", "product_names"]:
+        assert pi[key] == saved[key]
+    assert pi["daily_activity"][0]["sales"] == dict(p01=5)
+
+
+def test_pi_live_profit_counts_inventory_machine_cash_and_debt():
+    actions = [
+        dict(action="observe", payload={}, response=dict(
+            action_id="act_0001", sim_time=dict(day=1, minute_of_day=5),
+            elapsed_minutes=5, metrics=dict(cash_cents=10000))),
+        dict(action="make_offer", payload=dict(product_id="p01", quantity=10, unit_price_cents=80),
+             response=dict(action_id="act_0002", result=dict(outcome="accepted"))),
+        dict(action="stock_items", payload=dict(product_id="p01", slot_id="r1s1", quantity=10),
+             response=dict(action_id="act_0003", result=dict(moved_quantity=10))),
+        dict(action="end_day", payload={}, response=dict(
+            action_id="act_0004", events=[dict(type="sales", product_id="p01", quantity=3)],
+            metrics=dict(cash_cents=9000, machine_cash_cents=600, fee_debt_cents=50))),
+    ]
+    score = RunStore.pi_live_score(actions)
+    assert score["inventory_value_cents"] == 560
+    assert score["score_cents"] == 10110
+    assert score["net_profit_cents"] == 110
+    assert RunStore.pi_live_score(actions[1:]) == {}
+    assert RunStore.pi_live_score(actions[:2] + actions[3:]) == {}
+    actions[-1]["response"]["metrics"]["machine_cash_cents"] = 0
+    assert RunStore.pi_live_score(actions)["net_profit_cents"] == -490

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-model_path="${QWEN_MODEL_PATH:-/storage/models/Qwen3.5-2B}"
-# model_path="${QWEN_MODEL_PATH:-/storage/models/Qwen3.6-27B/}"
+# model_path="${QWEN_MODEL_PATH:-/storage/models/Qwen3.5-2B}"
+model_path="${QWEN_MODEL_PATH:-/storage/models/Qwen3.6-27B/}"
 
 cache_dir="${VENDING_MODEL_CACHE:-/tmp/vending-vllm-cache}"
 mkdir -p "$cache_dir"
@@ -18,7 +18,7 @@ exec "${VLLM_BIN:-vllm}" serve "$model_path" \
   --host 127.0.0.1 --port "${VLLM_PORT:-8001}" \
   --tensor-parallel-size "${VLLM_TENSOR_PARALLEL_SIZE:-1}" --language-model-only \
   --max-model-len "${VLLM_MAX_MODEL_LEN:-262144}" --max-num-seqs 1 \
-  --gpu-memory-utilization "${VLLM_GPU_MEMORY_UTILIZATION:-0.6}" \
+  --gpu-memory-utilization "${VLLM_GPU_MEMORY_UTILIZATION:-0.8}" \
   --enable-auto-tool-choice --tool-call-parser qwen3_coder \
   --reasoning-parser qwen3 --generation-config vllm \
   --enforce-eager --seed 0 "$@"

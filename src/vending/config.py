@@ -70,6 +70,7 @@ class Scenario(StrictModel):
     cost_variation_min_ppm: int = Field(default=980000, gt=0)
     cost_variation_max_ppm: int = Field(default=1020000, gt=0)
     listed_price_percent: int = Field(default=125, ge=100)
+    supplier_reshuffle_days: int = Field(default=30, gt=0)
     supplier_quotes: tuple[PairQuote, ...] = ()
 
     @model_validator(mode="after")

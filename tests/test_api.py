@@ -145,3 +145,27 @@ def test_competing_purchases_cannot_overspend(setup):
         results = list(pool.map(lambda _: r.action(eid,'make_offer',payload), range(2)))
     assert {x['result']['outcome'] for x in results} == {'accepted','insufficient_funds'}
     assert r.lookup(eid).engine.cash == 0
+
+
+def test_background_sweeper_expires_idle_environment(tmp_path, monkeypatch):
+    from threading import Event
+
+    now = [100.0]
+    registry = Registry(clock=lambda: now[0], artifact_dir=tmp_path)
+    expired = Event()
+    original = registry.finish
+
+    def finish(env_id, entry, state, reason):
+        original(env_id, entry, state, reason)
+        if reason == 'real_deadline':
+            expired.set()
+
+    monkeypatch.setattr(registry, 'finish', finish)
+    with TestClient(create_app(registry)) as client:
+        env_id = create(client, runtime_seconds=10)
+        now[0] += 10
+        # No API calls or manual sweep: the application's lifespan task must expire it.
+        assert expired.wait(timeout=5), 'Background sweeper did not expire the idle environment'
+        result = json.loads((tmp_path / f'{env_id}.json').read_text())['summary']
+        assert result['termination_reason'] == 'real_deadline'
+        assert result['committed_action_count'] == 0

@@ -156,3 +156,73 @@ def test_unstock_and_all_or_nothing(monkeypatch):
     e.execute("unstock_items", dict(slot_id="r1s1", quantity=8))
     assert e.slots["r1s1"].product_id is None and e.inventory()["p01"]["quantity"] == 10
     assert score(e)["inventory_value_cents"] == 800
+
+
+def test_supplier_reshuffle_boundary_replay_and_inventory():
+    e = Engine(Scenario(), 7)
+    initial = dict(e.quotes)
+    q = initial['s01', 'p01']
+    e.execute('make_offer', dict(supplier_id=q.supplier_id, product_id=q.product_id,
+                                quantity=2, unit_price_cents=q.minimum))
+    inventory = deepcopy(e.inventory())
+    e.advance(30 * 1440 - e.minute - 5)
+    assert e.quotes == initial
+    events = e.advance(5)
+    assert dict(type='supplier_reshuffle', day=31) in events
+    assert e.quotes != initial
+    assert any(e.quotes[key].category != quote.category for key, quote in initial.items())
+    assert Counter(q.category for q in e.quotes.values()) == dict(winner=20, loser=20, balanced=60)
+    assert e.inventory() == inventory
+    assert all(q.kind == initial[key].kind for key, q in e.quotes.items())
+    period_one = dict(e.quotes)
+    e.advance(30 * 1440)
+    assert e.quotes != period_one
+    replay = Engine(Scenario(), 7)
+    for _ in range(60):
+        replay.execute('end_day', {})
+    assert replay.quotes == e.quotes
+    assert replay.private_events == e.private_events
+
+
+def test_configurable_reshuffle_and_search_at_boundary():
+    e = Engine(Scenario(supplier_reshuffle_days=2), 42)
+    assert e.observe()['rules']['supplier_reshuffle_days'] == 2
+    old = dict(e.quotes)
+    e.advance(2 * 1440 - 25)
+    result = e.execute('search_products', {})
+    assert e.quotes != old
+    assert result['result']['quotes'] == e.catalog()['quotes']
+    assert dict(type='supplier_reshuffle', day=3) in result['events']
+    # New offers must use the current period's minimum and listed prices.
+    q = e.quotes['s01', 'p01']
+    result = e.execute('make_offer', dict(supplier_id=q.supplier_id, product_id=q.product_id,
+                                        quantity=1, unit_price_cents=q.minimum))
+    assert result['result']['outcome'] == 'accepted'
+
+
+def test_terminal_day_does_not_reshuffle():
+    e = Engine(Scenario(scenario_id='smoke-v1', max_days=30), 7)
+    initial = dict(e.quotes)
+    events = e.advance(31 * 1440)
+    assert e.state == 'ended' and e.quotes == initial
+    assert not any(event['type'] == 'supplier_reshuffle' for event in events)
+
+
+def test_purchase_crossing_reshuffle_keeps_original_agreed_cost():
+    e = Engine(Scenario(supplier_reshuffle_days=1), 7)
+    from vending.suppliers import build_quotes
+
+    next_quotes = build_quotes(list(e.products.values()), e.seed, e.config, epoch=1)
+    key = next(key for key, quote in e.quotes.items()
+               if next_quotes[key].minimum != quote.minimum)
+    quote = e.quotes[key]
+    e.advance(1440 - e.config.durations['make_offer'])
+    response = e.execute('make_offer', dict(
+        supplier_id=quote.supplier_id, product_id=quote.product_id,
+        quantity=2, unit_price_cents=quote.minimum,
+    ))
+    assert response['result']['outcome'] == 'accepted'
+    assert response['result']['total_cents'] == 2 * quote.minimum
+    assert e.inventory()[quote.product_id]['acquisition_cost_cents'] == 2 * quote.minimum
+    assert e.quotes[key].minimum != quote.minimum
+    assert dict(type='supplier_reshuffle', day=2) in response['events']

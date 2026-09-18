@@ -172,7 +172,9 @@ a conflicting payload returns `409`. Lifecycle checks precede replay.
 ## Design and evaluation
 
 The default supplier pairs have exactly 20 winner, 20 loser, and 60 balanced costs, with seeded
-variation and fixed patient/impatient/pushy-patient policies. Supplier types and
+variation and fixed patient/impatient/pushy-patient policies. Pair categories and
+supplier prices reshuffle every 30 simulated days (configurable with
+`scenario.supplier_reshuffle_days`), starting on day 31. Supplier types and
 minimums are private. Offers deliver immediately; stocking and prices take effect
 before action time advances. Five-minute PCG64 demand streams are keyed by seed,
 product, and absolute tick. Demand is sampled even without stock. Multiple slots

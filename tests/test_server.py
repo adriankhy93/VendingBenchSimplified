@@ -57,3 +57,32 @@ def test_server_rejects_invalid_configuration(tmp_path, value):
     path.write_text(value)
     with pytest.raises(ValueError):
         load_server_config(path)
+
+
+def test_launch_config_cuts_off_after_one_real_hour(tmp_path):
+    from vending.api import create_app
+    from vending.registry import Registry
+
+    scenario, seed = load_server_config('configs/environment.json')
+    assert scenario.runtime_seconds == 3600
+    now = [100.0]
+    registry = Registry(scenario, default_seed=seed, clock=lambda: now[0],
+                        artifact_dir=tmp_path)
+    with TestClient(create_app(registry)) as client:
+        env_id = client.post('/env', json={}).json()['env_id']
+        now[0] += 3599
+        response = client.post(f'/env/{env_id}/observe', json={})
+        assert response.status_code == 200
+        assert response.json()['result']['rules']['runtime_seconds'] == 3600
+        now[0] += 1
+        # An idle environment expires without needing another agent action.
+        registry.sweep()
+        assert registry.lookup(env_id).engine is None
+        assert client.post(f'/env/{env_id}/observe', json={}).status_code == 410
+        result = client.get(f'/env/{env_id}/result').json()
+        assert result['termination_reason'] == 'real_deadline'
+        assert result['wall_duration_seconds'] == 3600
+        assert result['committed_action_count'] == 1
+        assert result['simulated_minutes'] == 5
+        artifact = json.loads((tmp_path / f'{env_id}.json').read_text())
+        assert artifact['summary'] == result

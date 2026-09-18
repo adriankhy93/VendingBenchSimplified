@@ -116,3 +116,20 @@ def test_generation_seed_override_changes_saved_seed_and_quotes(tmp_path):
     assert from_config.seed == 1
     assert overridden.seed == 999
     assert from_config.scenario.supplier_quotes != overridden.scenario.supplier_quotes
+
+
+def test_saved_quotes_do_not_prevent_periodic_reshuffle(tmp_path):
+    from vending.engine import Engine
+
+    original = EnvironmentConfig(seed=17)
+    source = tmp_path / 'config.json'
+    source.write_text(original.model_dump_json())
+    generate(source, 'rotating', tmp_path)
+    definition, _ = load_environment(tmp_path, 'rotating')
+    direct = Engine(original.scenario, 17)
+    restored = Engine(definition.scenario, 17)
+    initial = dict(restored.quotes)
+    direct.advance(30 * 1440)
+    restored.advance(30 * 1440)
+    assert restored.quotes != initial
+    assert restored.quotes == direct.quotes

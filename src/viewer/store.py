@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import re
 from .tokens import DailyTokens, action_tokens
+from .activity import Activity
 
 
 class RunNotFound(ValueError):
@@ -246,6 +247,35 @@ class RunStore:
             for lot in slot["lots"]
         )
 
+    @classmethod
+    def pi_live_score(cls, actions):
+        """Reconstruct profit only when the session includes a complete action history."""
+        if not actions:
+            return {}
+        first = actions[0]["response"]
+        clock = first.get("sim_time") or {}
+        if (actions[0]["action"] != "observe"
+                or clock.get("day") != 1
+                or clock.get("minute_of_day") != first.get("elapsed_minutes")
+                or first.get("events")):
+            return {}
+        for index, record in enumerate(actions, 1):
+            if record["response"].get("action_id") != f"act_{index:04}":
+                return {}
+        initial = (first.get("metrics") or {}).get("cash_cents")
+        balances = actions[-1]["response"].get("metrics") or {}
+        keys = ("cash_cents", "machine_cash_cents", "fee_debt_cents")
+        if initial is None or any(key not in balances for key in keys):
+            return {}
+        inventory = cls.pi_inventory_value(actions)
+        gross = balances["cash_cents"] + balances["machine_cash_cents"] + inventory
+        net = gross - balances["fee_debt_cents"]
+        return dict(
+            **{key: balances[key] for key in keys},
+            inventory_value_cents=inventory, gross_assets_cents=gross,
+            score_cents=net, net_profit_cents=net - initial,
+        )
+
     def pi_metadata(self, path):
         warnings = []
         data = self.pi_data(path, warnings)
@@ -380,7 +410,9 @@ class RunStore:
             path = self.pi_path(run_id)
             item, data = self.pi_metadata(path)
             timeline, action_counts, last_response = [], {}, None
+            activity = Activity()
             for index, record in enumerate(data["actions"], 1):
+                activity.add(record)
                 action = record["action"]
                 action_counts[action] = action_counts.get(action, 0) + 1
                 response = record["response"]
@@ -398,19 +430,21 @@ class RunStore:
                 item["simulated_minutes"] = timeline[-1]["minute"]
                 item["last_balances"] = last_response["metrics"]
             item["inventory_value_cents"] = self.pi_inventory_value(data["actions"])
+            item["live_score"] = self.pi_live_score(data["actions"])
+            if last_response and last_response.get("score"):
+                item["score"] = last_response["score"]
+                item["score_source"] = "terminal"
+                item["classification"] = "completed"
+                item["reason"] = last_response.get("termination_reason")
             return dict(
                 **item,
                 config={},
                 terminal={},
                 summary=None,
                 timeline=timeline,
-                sales=[],
-                day_events=[],
+                **activity.fields(),
                 action_counts=action_counts,
                 action_total=len(data["actions"]),
-                machine=None,
-                inventory=None,
-                product_names={},
                 memory="",
                 usage_records=[],
                 tokens_by_day=[],
@@ -424,7 +458,9 @@ class RunStore:
         timeline, day_events, sold, action_counts, names = [], [], {}, {}, {}
         last_machine, last_inventory, last_response = None, None, None
         count = 0
+        activity = Activity()
         for record in self.records(path, "actions.jsonl", warnings):
+            activity.add(record)
             token_days.action(record)
             count += 1
             action = record.get("action", "unknown")
@@ -500,6 +536,7 @@ class RunStore:
                 dict(product_id=pid, name=names.get(pid, pid), quantity=qty)
                 for pid, qty in sorted(sold.items())
             ],
+            daily_activity=activity.fields()["daily_activity"],
             day_events=day_events,
             action_counts=action_counts,
             action_total=count,

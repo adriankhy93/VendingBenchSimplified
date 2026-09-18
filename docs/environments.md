@@ -24,7 +24,19 @@ invalid IDs, invalid quantities, and inconsistent limits are rejected before gen
 | `category_cost_percent` | Minimum acquisition cost for each category, as a percentage of reference before random variation. |
 | `cost_variation_min_ppm`, `cost_variation_max_ppm` | Inclusive random cost multiplier bounds, in parts per million. `980000`–`1020000` means 0.98–1.02. |
 | `listed_price_percent` | Listed cost as a percentage of minimum, rounded up to cents; at least 100. |
+| `supplier_reshuffle_days` | Positive integer interval, default 30. Regenerates pair categories and prices at the start of days 31, 61, etc. |
 | `supplier_quotes` | Optional explicit quote overrides, described below. |
+
+For the service started with `bash start_env.sh configs/environment.json`, set
+`scenario.runtime_seconds` in that file. It is currently `3600` (one real hour).
+The timer starts when `POST /env` creates each environment, not when the service
+starts, and includes time spent waiting for the agent. At the deadline, new actions
+return HTTP 410; actions still executing are discarded instead of committed. Idle
+environments are finalized by the background sweep (every second). The terminal
+result is available from `GET /env/{env_id}/result` with termination reason
+`real_deadline` until retention expires. Restart the service and create a new
+environment to apply a changed configuration. Saved environments use their own
+`scenario.runtime_seconds` value.
 
 `seed` is an integer from 0 through 2^63−1. Monetary inputs are integer cents;
 percentages and variation inputs are integers, so currency calculations remain exact.
@@ -37,6 +49,16 @@ remainders, breaking ties in winner/loser/balanced order, then a seeded shuffle.
 20/20/60 yields exactly those counts for 100 pairs and scales to other catalog sizes.
 At least one weight must be positive. Generated minimum costs round to the nearest
 cent, with a one-cent floor.
+
+Every `supplier_reshuffle_days` completed days, a running environment reshuffles
+pair categories and regenerates minimum and listed prices. Category counts follow
+the same weights in every generated period; individual pairs may retain their
+category by chance. The seed and period determine the market independently of
+how time is advanced. Supplier policies, selling prices, and inventory acquisition
+costs remain unchanged. Actions use the market at their start; observations and
+search results show the market after time advances. A public `supplier_reshuffle`
+event announces the new day without revealing private categories or minimums.
+No reshuffle occurs after the environment ends.
 
 To set specific supplier prices instead of generating them, put entries in
 `scenario.supplier_quotes`, for example:
@@ -55,7 +77,9 @@ To set specific supplier prices instead of generating them, put entries in
 
 You can override any subset of pairs; the rest are generated normally. Overrides
 must reference existing IDs and have `0 < minimum_cents <= listed_cents`. Overrides
-can change the final category distribution. Generation writes every resolved pair
+can change the initial category distribution. Overrides apply only to the initial
+30-day period (or configured interval); later periods use `category_weights` and
+`category_cost_percent` with seeded variation. Generation writes every resolved pair
 into the saved definition, so its prices are inspectable and independent of future
 fixture edits. The saved file is evaluator data and includes private market parameters.
 
