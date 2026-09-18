@@ -1,13 +1,13 @@
 {
-  "seed": 0,
+  "seed": 424242,
   "scenario": {
-    "scenario_id": "smoke-v1",
-    "version": "1.0-proposal",
-    "runtime_seconds": 120,
-    "max_days": 14,
-    "starting_cash_cents": 50000,
-    "daily_fee_cents": 200,
-    "failure_limit": 10,
+    "scenario_id": "benchmark-v1",
+    "version": "1.0-proposal-eval",
+    "runtime_seconds": 7200,
+    "max_days": null,
+    "starting_cash_cents": 35000,
+    "daily_fee_cents": 300,
+    "failure_limit": 8,
     "machine_rows": 4,
     "slots_per_row": 3,
     "slot_capacity": 10,
@@ -38,7 +38,7 @@
       "end_day": 0
     },
     "min_price_percent": 25,
-    "max_price_percent": 500,
+    "max_price_percent": 350,
     "products": [
       {
         "id": "p01",
@@ -154,18 +154,18 @@
       }
     ],
     "category_weights": {
-      "winner": 20,
-      "loser": 20,
+      "winner": 10,
+      "loser": 30,
       "balanced": 60
     },
     "category_cost_percent": {
-      "winner": 80,
-      "loser": 120,
-      "balanced": 95
+      "winner": 85,
+      "loser": 130,
+      "balanced": 102
     },
-    "cost_variation_min_ppm": 980000,
-    "cost_variation_max_ppm": 1020000,
-    "listed_price_percent": 125,
+    "cost_variation_min_ppm": 990000,
+    "cost_variation_max_ppm": 1030000,
+    "listed_price_percent": 135,
     "supplier_quotes": []
   }
 }

@@ -1,7 +1,7 @@
 # Simplified Vending Bench
 
-A deterministic Python vending simulation, a local FastAPI service, and an HTTP-only
-agent harness. The engine implements [plan.md](plan.md) with the proposed defaults
+A deterministic Python vending simulation, a local FastAPI service, and a Pi-based
+HTTP-only agent harness. The engine implements [plan.md](plan.md) with the proposed defaults
 versioned as `1.0-proposal`. Benchmark environments last two real hours with no
 simulated-day cap; smoke environments have an explicit cap.
 
@@ -51,15 +51,14 @@ same viewer is available as `vending-view`. The viewer binds to loopback by defa
 ## Configure, generate, and choose an environment
 
 Edit [configs/environment.json](configs/environment.json), which explicitly lists all
-simulation settings, products, suppliers, and the seed. A full short-run example is
-[configs/environment-smoke.json](configs/environment-smoke.json).
+simulation settings, products, suppliers, and the seed.
 
 After installing the project dependencies, generate and run a named environment:
 
 ```sh
 ./scripts/generate_environment.sh configs/environment.json my-market
 ./scripts/list_environments.sh
-./scripts/run_environment.sh my-market --agent negotiating
+./scripts/run_environment.sh my-market
 ```
 
 Generation creates `environments/my-market.json`. It embeds the complete configuration,
@@ -67,31 +66,34 @@ seed, and resolved supplier quotes, and refuses to overwrite an existing name. C
 the input config and generate another name to create a different experiment. Generation
 does not start the clock. Each run starts a fresh episode from the selected definition.
 
-`run_environment.sh` starts a loopback HTTP service on an available port, runs the agent,
-and stops the service afterward. No separately launched server is needed. The checked-in
-`default` and `smoke` environments are ready to select; for a quick run:
+`run_environment.sh` starts a loopback HTTP service on an available port using the
+selected saved environment (or config path), launches Pi, and stops the service when Pi
+exits. No separately launched simulation server is needed. The checked-in `default` and
+`smoke` environments are ready to select; for a quick run:
 
 ```sh
-./scripts/run_environment.sh smoke --agent listed
+./scripts/run_environment.sh smoke
 ```
 
-Use `--agent model --model YOUR_MODEL_ID` for the optional configured provider. Additional
-runner options, such as `--config configs/harness-smoke.json`, control harness budgets and
-prompts. The selected saved environment supplies the seed, scenario, runtime, and day cap;
-harness defaults do not override those values. `--smoke` cannot override a saved definition.
-Scripts use `python3`; set `PYTHON_BIN` if your installed interpreter has another path.
-
-For an already running service, select the same saved name with:
+For iterative harness tuning on fresh randomized markets, keep the same scenario
+parameters and regenerate with a random seed each time:
 
 ```sh
-python3 -m harness.runner --environment my-market --agent negotiating
+./scripts/generate_environment.sh configs/environment.json train-001 random
+./scripts/run_environment.sh train-001
 ```
 
-Both processes read `./environments` by default. Use `--environments-dir PATH` on the
-runner and `VENDING_ENVIRONMENTS_DIR=PATH` on the service for another location. With a
-remote service, place identical copies of the selected file in both directories. A
-SHA-256 check rejects mismatched files. The evaluator copy and hash are recorded in
-run artifacts; private market parameters are kept out of the agent context.
+For a fair shared evaluation, use a harder fixed-seed definition so every user is
+scored on identical private quotes:
+
+```sh
+./scripts/generate_environment.sh configs/environment-eval.json eval-fixed
+./scripts/run_environment.sh eval-fixed
+```
+
+`scripts/run_pi_agent.sh` options can be passed through `run_environment.sh` after the
+first argument. Scripts use `python3`; set `PYTHON_BIN` if your installed interpreter
+has another path.
 
 See [the configuration reference](docs/environments.md) for fields and validation rules.
 
@@ -107,8 +109,8 @@ bash start_env.sh configs/environment.json
 ```
 
 `start_env.sh` starts the REST service on `127.0.0.1:8000`. It accepts either a
-direct `Scenario` JSON file such as `configs/smoke.json`, or an environment
-configuration such as `configs/environment.json` containing `seed` and `scenario`.
+direct `Scenario` JSON file, or an environment configuration such as
+`configs/environment.json` containing `seed` and `scenario`.
 For the latter, an empty `POST /env` uses the configured seed; clients can still
 provide a different seed or allowed runtime override in the request body. Set
 `VENDING_HOST`, `VENDING_PORT`, `VENDING_ARTIFACT_DIR`, or
@@ -117,46 +119,21 @@ provide a different seed or allowed runtime override in the request body. Set
 In another terminal, activate the same environment and run from the repository root:
 
 ```sh
-vending-run --smoke --agent negotiating
-vending-benchmark --smoke --seeds 0 1 2
+./scripts/install_pi.sh
+./scripts/serve_qwen_vllm.sh
+./scripts/run_pi_agent.sh
 python -m pytest -q
 ```
 
-`--agent idle`, `listed`, and `negotiating` require no credentials. Omit `--smoke`
-for the benchmark scenario. The runner's call/token limits can truncate an episode
-before the service deadline; these runs are labeled `budget_truncated`.
-
-The optional model adapter uses Anthropic Messages with native tool calls:
-
-```sh
-python -m pip install -e '.[model]'
-export ANTHROPIC_API_KEY='your-key'
-vending-run --smoke --agent model --model YOUR_MODEL_ID
-```
-
-Choose an available model explicitly. No model or price is silently selected.
-The adapter follows the [provider tool-use contract](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview).
-SDK usage is recorded; monetary model cost is `null` unless an adapter supplies it.
-No paid model run was used for the checked-in measurements.
-
 ## Configuration and artifacts
 
-Pass `--config PATH` to either harness command for a `RunConfig` JSON object.
-See [configs/harness-smoke.json](configs/harness-smoke.json) for an example.
-Configuration supports prompt/Markdown instruction paths, tool allowlists, bounded
-context, optional local `write_memory`, model/request timeouts, token/call budgets,
-and isolated memory templates. Paths are relative to the working directory.
-
-Set `VENDING_SCENARIO=configs/smoke.json` to change service defaults, or leave it
-unset for the benchmark scenario. `Scenario` validates tunable action durations,
+Set `VENDING_SCENARIO=/path/to/scenario.json` to change service defaults, or leave
+it unset for the benchmark scenario. `Scenario` validates tunable action durations,
 fees, capacity, retention, and weekly demand multipliers. Prices, quantities, money,
 and simulated minutes are integers. Each of 12 slots holds 10 units by default.
 
-Each runner creates `runs/<run_id>/` containing `config.json` (including instruction
-hashes), `actions.jsonl`, `usage.jsonl`, `memory.md`, and `summary.json`. The model
-receives public observations only. Seed/scenario selection stays with the evaluator.
-Old action/result pairs become deterministic quote, price, and realized-sales notes;
-the most recent 20 pairs remain intact. Memory is bounded and reset per run.
+Pi sessions are saved in `runs/pi-sessions/` as JSONL traces. These traces include
+model messages, tool calls, tool results, and token usage.
 
 The service writes separate trusted artifacts under `runs/service/`, configurable
 through `VENDING_ARTIFACT_DIR`. `<env_id>.json` contains the terminal or pre-deletion
@@ -244,7 +221,4 @@ and the loopback vLLM endpoint at `http://127.0.0.1:8001/v1`. Set
 history is its model trace; use `/export` or its session JSONL for inspection.
 
 Pi sessions are saved in `runs/pi-sessions/`, which is ignored by Git. Each JSONL
-session records model messages, tool calls, tool results, and token usage. The
-previous custom Python model runner, [harness.md](harness.md), and
-`llm_traces.jsonl` remain only for historical runs; they are no longer the
-recommended model-agent path.
+session records model messages, tool calls, tool results, and token usage.

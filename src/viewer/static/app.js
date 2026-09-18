@@ -194,7 +194,7 @@ function renderDetail(d) {
     rows($('score-breakdown'), [
         ['Spendable cash', money(score.cash_cents ?? d.last_balances?.cash_cents)],
         ['Machine cash', money(score.machine_cash_cents ?? d.last_balances?.machine_cash_cents)],
-        ['Inventory at cost', money(score.inventory_value_cents)],
+        ['Inventory at cost', money(score.inventory_value_cents ?? d.inventory_value_cents)],
         ['Unpaid fee debt', money(score.fee_debt_cents ?? d.last_balances?.fee_debt_cents)],
         ['Final score', money(score.score_cents)]
     ]);
@@ -377,14 +377,14 @@ async function loadActions() {
     try {
         const params = new URLSearchParams({
             offset: state.actionOffset,
-            limit: 50,
+            limit: 1000,
             action: $('action-filter').value
         });
         const data = await api(`/api/runs/${encodeURIComponent(id)}/actions?${params}`);
         if (seq !== state.actionSeq || id !== state.id) return;
         $('actions-prev').disabled = state.actionOffset === 0;
-        $('actions-next').disabled = state.actionOffset + 50 >= data.total;
-        $('actions-page').textContent = data.total ? `${state.actionOffset+1}–${Math.min(state.actionOffset+50,data.total)} of ${data.total}` : '0 actions';
+        $('actions-next').disabled = state.actionOffset + 1000 >= data.total;
+        $('actions-page').textContent = data.total ? `${state.actionOffset+1}–${Math.min(state.actionOffset+1000,data.total)} of ${data.total}` : '0 actions';
         if (!data.actions.length) return empty($('action-table'), 'No matching actions recorded.');
         const [t, body] = table(['#', 'Simulated time', 'Action', 'Outcome', 'Spendable', 'Units sold', 'Input tokens', 'Output tokens', 'Total tokens']);
         for (const entry of data.actions) {
@@ -467,7 +467,7 @@ $('actions-prev').addEventListener('click', () => {
     loadActions();
 });
 $('actions-next').addEventListener('click', () => {
-    state.actionOffset += 50;
+    state.actionOffset += 1000;
     loadActions();
 });
 let refreshing = false;

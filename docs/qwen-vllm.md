@@ -30,8 +30,7 @@ Override these settings when needed:
 ```bash
 VLLM_GPU=0 VLLM_PORT=8002 VLLM_GPU_MEMORY_UTILIZATION=0.20 \
   ./scripts/serve_qwen_vllm.sh
-./scripts/run_environment.sh smoke --config configs/harness-qwen-vllm.json \
-  --model-base-url http://127.0.0.1:8002/v1
+VENDING_API_URL=http://127.0.0.1:8000 ./scripts/run_pi_agent.sh
 ```
 
 `QWEN_MODEL_PATH`, `VLLM_MAX_MODEL_LEN`, `VLLM_BIN`, and `VENDING_MODEL_CACHE`

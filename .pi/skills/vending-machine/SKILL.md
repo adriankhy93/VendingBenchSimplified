@@ -34,6 +34,17 @@ This returns `{"env_id":"env_..."}`. To select a pre-generated environment,
 send `{"environment_name":"NAME"}` instead. Creation can also set `seed`,
 `scenario_id`, `runtime_seconds`, and, only for `smoke-v1`, `max_days`.
 
+Store the entire returned value, including its `env_` prefix. Do not type or
+shorten it manually. For example, create it once and extract it mechanically:
+
+```bash
+ENV_ID="$(curl --fail-with-body -sS -X POST "${VENDING_API_URL:-http://127.0.0.1:8000}/env" \
+  -H 'Content-Type: application/json' -d '{}' | sed -n 's/.*"env_id":"\([^"]*\)".*/\1/p')"
+```
+
+Use `"$ENV_ID"` in every later URL, such as
+`POST /env/$ENV_ID/observe`. Never send the literal text `ENV_ID` in a request.
+
 Check lifecycle state at any time:
 
 ```bash
@@ -59,6 +70,71 @@ Every action is `POST /env/ENV_ID/ACTION` with `Content-Type: application/json`.
 Successful actions return a public result envelope. Read it before choosing the
 next request because a valid request can be rejected as a business outcome.
 
+## Operating limits
+
+Call `observe` immediately after creation. Its `result.rules`, `result.slots`,
+`result.products`, and `result.suppliers` are authoritative for that specific
+environment. Use only IDs that appear in those response fields.
+
+The default benchmark machine has four rows and three slots per row: exactly
+`r1s1`, `r1s2`, `r1s3`, `r2s1`, `r2s2`, `r2s3`, `r3s1`, `r3s2`, `r3s3`,
+`r4s1`, `r4s2`, and `r4s3`. Each slot holds at most 10 units of one product.
+Do not invent slot IDs such as `r9999s9999`.
+
+For every purchase, stock, or unstock request, send a positive integer quantity
+only. Do not exceed `result.rules.quantity_cap` when purchasing. Before stocking,
+set that product's price, use an empty slot or one already holding that product,
+and ensure the requested quantity fits both the available storage and the slot's
+remaining capacity. Before unstocking, ensure the slot contains at least that
+many units.
+
+Use only product and supplier IDs returned by `observe` or `search_products`.
+All money values are positive integer cents. For `set_price`, use the selected
+product's public `min_price_cents` through `max_price_cents`, inclusive. For
+`make_offer`, ensure `quantity * unit_price_cents` does not exceed current
+spendable cash. Inspect each response before the next action; a rejected action
+does not complete the requested inventory change.
+
+Demand and sales resolve once at each midnight, not continuously during a day.
+`wait` advances five simulated hours, while `end_day` advances directly to the
+next midnight. After a completed day, inspect the day event and machine state;
+collect cash and replenish depleted slots before advancing another day.
+
+## Daily operating loop
+
+Use this compact loop for the entire episode. Keep narration to one short
+sentence or omit it; prioritize tool calls and retain only the current machine,
+storage, cash, prices, and best known quotes in your working state.
+
+Do not enumerate the full catalog, recalculate the same margins, or write a
+step-by-step analysis. After receiving `observe`, make the next tool call within
+one short decision. The response budget is limited, so use a practical default
+instead of searching for a mathematically exact optimum: choose up to four
+products with the lowest listed cost relative to their reference price, set a
+legal price modestly above each product's reference price, buy 10 units each at
+the best listed quote, and stock one empty slot per product. Revise this small
+assortment only from observed daily sales.
+
+1. Call `observe` once at startup. It already includes the catalog, all listed
+  quotes, prices, storage, slots, cash, and rules. Do not call `observe` or an
+  unfiltered `search_products` again unless information is missing.
+2. Choose a small assortment using listed quotes that leave a positive margin at
+  a legal retail price. Set each chosen product's price, purchase stock, then
+  stock only valid empty slots. A purchase must precede its corresponding stock
+  action; an accepted `make_offer` is the only way to add storage inventory.
+3. After initial stocking, use `end_day`, not repeated `wait` calls. There can
+  be no sales before midnight, and `end_day` reaches that settlement directly.
+4. After every midnight, call `get_machine` once. If machine cash is positive,
+  call `collect_cash` once. Call `get_inventory` before refilling any slot.
+5. Refill only after checking the returned state: for a selected slot, request
+  no more than `capacity - quantity`; for storage, request no more than the
+  returned product quantity. If storage is short, buy only the missing amount,
+  then make one stock request. Never retry a rejected `stock_items` request
+  unchanged. For `slot_full`, choose another valid slot or wait for sales; for
+  `insufficient_stock`, purchase stock first.
+6. Repeat from `end_day` while the environment is running. Stop immediately on
+  `ended` or `unavailable`, then delete the environment.
+
 | Action | JSON body | Purpose |
 | --- | --- | --- |
 | `observe` | `{}` | Full public snapshot: catalog, supplier quotes, inventory, slots, prices, balances, and rules. |
@@ -71,8 +147,8 @@ next request because a valid request can be rejected as a business outcome.
 | `stock_items` | `{"slot_id":"r1s1","product_id":"p01","quantity":10}` | Move purchased storage stock into a machine slot. |
 | `unstock_items` | `{"slot_id":"r1s1","quantity":10}` | Move items from a slot back to storage. |
 | `collect_cash` | `{}` | Move machine cash into spendable cash. |
-| `wait` | `{}` | Advance simulated time by the configured wait duration. |
-| `end_day` | `{}` | Advance to the next day and assess sales and fees. |
+| `wait` | `{}` | Advance simulated time by the configured wait duration; sales settle at midnight. |
+| `end_day` | `{}` | Advance to the next midnight, settle daily sales, and assess fees. |
 
 For example:
 

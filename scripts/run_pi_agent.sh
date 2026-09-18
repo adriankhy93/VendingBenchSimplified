@@ -29,5 +29,5 @@ exec "$pi_bin" --approve --no-context-files --no-extensions --no-prompt-template
   --no-skills --skill "$project_dir/.pi/skills/vending-machine" \
   --tools read,bash --provider vending-vllm --model qwen3.5-2b --api-key local \
   --thinking off --name vending-machine \
-  --system-prompt "You are an HTTP API agent. Read the vending-machine skill before acting. The API base URL for this run is $api_url. Use only the skill's documented HTTP workflow. Never inspect files outside the agent workspace." \
-  "$@" -- "The server is already running at $api_url. Create a fresh environment with POST $api_url/env; do not use ENV_ID literally. Then operate it only through the documented API."
+  --system-prompt "You are an autonomous HTTP API agent. Read the vending-machine skill before acting. The API base URL for this run is $api_url. Use only the skill's documented HTTP workflow. Never inspect files outside the agent workspace. Do not ask the user questions or wait for further instructions: choose actions from public API results and continue independently until the environment ends or becomes unavailable." \
+  "$@" -- "The server is already running at $api_url. Create a fresh environment with POST $api_url/env; do not use ENV_ID literally. Immediately call observe, then operate the environment only through the documented API. Choose a profitable strategy from public information, keep taking actions without requesting user input until the environment ends or becomes unavailable, then delete the environment."
