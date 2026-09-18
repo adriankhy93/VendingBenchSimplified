@@ -5,135 +5,82 @@ description: Operate a simplified vending-machine simulation through its REST AP
 
 # Simplified vending-machine REST API
 
-You operate the simulation only through HTTP requests. The API base URL is
-`$VENDING_API_URL` when set, otherwise `http://127.0.0.1:8000`.
+Use only HTTP requests to `${VENDING_API_URL:-http://127.0.0.1:8000}`.
 
-Use the `bash` tool with `curl --fail-with-body -sS` and JSON request bodies. Keep
-the `env_id` returned by creation in the conversation and include it in every
-later path. Never read the server filesystem, engine source, environment JSON, or
-private artifacts to decide an action.
+Hard rules:
 
-The API server is already running. Do not start a server, create configuration
-files, inspect the project, or invoke any script. `ENV_ID` below is a placeholder,
-never a literal ID. At the beginning of a fresh run there is no environment ID:
-your first API call must be `POST /env`, then use its returned `env_id`.
+1. Use only `bash` with `curl --fail-with-body -sS` and JSON bodies.
+2. Run one API request per `bash` tool call.
+3. Never read server files, engine source, environment JSON, or private artifacts.
+4. Never start the server or invoke project scripts from this skill.
+5. `ENV_ID` is a placeholder. Never send literal `ENV_ID` in a request.
+6. On graph-guard block, do the prerequisite named in the block reason.
 
-## Lifecycle
+Required lifecycle:
 
-The lifecycle endpoints are `POST /env`, `GET /env/ENV_ID/status`, and
-`DELETE /env/ENV_ID`.
+Lifecycle endpoints are `POST /env`, `GET /env/ENV_ID/status`, and `DELETE /env/ENV_ID`.
 
-Create a new environment once:
+1. First call must be `POST /env`.
+2. Save returned `env_id` exactly, including `env_` prefix.
+3. Call `observe` immediately after creation.
+4. Operate only while status is `running`.
+5. On `ended` or `unavailable`, stop action calls and `DELETE /env/ENV_ID`.
+
+Use this create call:
 
 ```bash
 curl --fail-with-body -sS -X POST "${VENDING_API_URL:-http://127.0.0.1:8000}/env" \
   -H 'Content-Type: application/json' -d '{}'
 ```
 
-This returns `{"env_id":"env_..."}`. To select a pre-generated environment,
-send `{"environment_name":"NAME"}` instead. Creation can also set `seed`,
-`scenario_id`, `runtime_seconds`, and, only for `smoke-v1`, `max_days`.
+To select a saved definition, create with `{"environment_name":"NAME"}`.
 
-Store the entire returned value, including its `env_` prefix. Do not type or
-shorten it manually. For example, create it once and extract it mechanically:
+## Controller graph
 
-```bash
-ENV_ID="$(curl --fail-with-body -sS -X POST "${VENDING_API_URL:-http://127.0.0.1:8000}/env" \
-  -H 'Content-Type: application/json' -d '{}' | sed -n 's/.*"env_id":"\([^"]*\)".*/\1/p')"
+Follow this finite-state controller. Prefer one action per decision.
+
+```mermaid
+flowchart LR
+  Start([Start]) --> Create[POST /env]
+  Create --> Observe[observe]
+  Observe --> Running{state running?}
+  Running -- no --> Stop[Stop actions]
+  Running -- yes --> Init[set_price -> make_offer -> stock_items]
+  Init --> EndDay[end_day]
+  EndDay --> Midnight[get_machine -> collect_cash -> get_inventory]
+  Midnight --> Refill{more to buy or refill?}
+  Refill -- yes --> Init
+  Refill -- no --> EndDay
+  Stop --> Delete[DELETE /env/ENV_ID]
+  Delete --> End([Done])
+
+  classDef action fill:#eef7ff,stroke:#4a86c5,stroke-width:1px,color:#102a43;
+  classDef decision fill:#fff4d6,stroke:#c58f00,stroke-width:1px,color:#4a3500;
+  classDef stop fill:#fdecec,stroke:#c54a4a,stroke-width:1px,color:#5a1010;
+  class Create,Observe,Init,EndDay,Midnight,Delete action;
+  class Running,Refill decision;
+  class Stop stop;
 ```
 
-Use `"$ENV_ID"` in every later URL, such as
-`POST /env/$ENV_ID/observe`. Never send the literal text `ENV_ID` in a request.
+  ## Daily policy
 
-Check lifecycle state at any time:
+  1. `observe` once at startup, then cache `result.rules`, slots, products, suppliers, balances.
+  2. Choose up to four products with best listed cost relative to reference price.
+  3. For each selected product: `set_price` -> accepted `make_offer` -> `stock_items`.
+  4. Use `end_day` to advance to settlement; avoid repeated `wait` before first settlement.
+  5. After midnight: `get_machine`, `collect_cash` if positive, then `get_inventory`.
+  6. Refill depleted slots; if storage is short, buy missing quantity first.
+  7. Never repeat rejected `stock_items` unchanged.
 
-```bash
-curl --fail-with-body -sS "${VENDING_API_URL:-http://127.0.0.1:8000}/env/ENV_ID/status"
-```
-
-The response is exactly one of `{"state":"running"}`, `{"state":"ended"}`,
-or `{"state":"unavailable"}`. Do not make further action calls unless it is
-`running`. When finished, release resources:
-
-```bash
-curl --fail-with-body -sS -o /dev/null -w '%{http_code}\n' -X DELETE \
-  "${VENDING_API_URL:-http://127.0.0.1:8000}/env/ENV_ID"
-```
-
-Deletion returns HTTP 204. The server's real-time deadline can end a run even if
-simulated time remains. A known ended environment rejects an action with 410;
-an unavailable environment may return 409; an unknown ID or action returns 404.
-
-## Actions
-
-Every action is `POST /env/ENV_ID/ACTION` with `Content-Type: application/json`.
-Successful actions return a public result envelope. Read it before choosing the
-next request because a valid request can be rejected as a business outcome.
-
-## Operating limits
-
-Call `observe` immediately after creation. Its `result.rules`, `result.slots`,
-`result.products`, and `result.suppliers` are authoritative for that specific
-environment. Use only IDs that appear in those response fields.
-
-The default benchmark machine has four rows and three slots per row: exactly
-`r1s1`, `r1s2`, `r1s3`, `r2s1`, `r2s2`, `r2s3`, `r3s1`, `r3s2`, `r3s3`,
-`r4s1`, `r4s2`, and `r4s3`. Each slot holds at most 10 units of one product.
-Do not invent slot IDs such as `r9999s9999`.
-
-For every purchase, stock, or unstock request, send a positive integer quantity
-only. Do not exceed `result.rules.quantity_cap` when purchasing. Before stocking,
-set that product's price, use an empty slot or one already holding that product,
-and ensure the requested quantity fits both the available storage and the slot's
-remaining capacity. Before unstocking, ensure the slot contains at least that
-many units.
-
-Use only product and supplier IDs returned by `observe` or `search_products`.
-All money values are positive integer cents. For `set_price`, use the selected
-product's public `min_price_cents` through `max_price_cents`, inclusive. For
-`make_offer`, ensure `quantity * unit_price_cents` does not exceed current
-spendable cash. Inspect each response before the next action; a rejected action
-does not complete the requested inventory change.
-
-Demand and sales resolve once at each midnight, not continuously during a day.
-`wait` advances five simulated hours, while `end_day` advances directly to the
-next midnight. After a completed day, inspect the day event and machine state;
-collect cash and replenish depleted slots before advancing another day.
-
-## Daily operating loop
-
-Use this compact loop for the entire episode. Keep narration to one short
-sentence or omit it; prioritize tool calls and retain only the current machine,
-storage, cash, prices, and best known quotes in your working state.
-
-Do not enumerate the full catalog, recalculate the same margins, or write a
-step-by-step analysis. After receiving `observe`, make the next tool call within
-one short decision. The response budget is limited, so use a practical default
-instead of searching for a mathematically exact optimum: choose up to four
-products with the lowest listed cost relative to their reference price, set a
-legal price modestly above each product's reference price, buy 10 units each at
-the best listed quote, and stock one empty slot per product. Revise this small
-assortment only from observed daily sales.
-
-1. Call `observe` once at startup. It already includes the catalog, all listed
-  quotes, prices, storage, slots, cash, and rules. Do not call `observe` or an
-  unfiltered `search_products` again unless information is missing.
-2. Choose a small assortment using listed quotes that leave a positive margin at
-  a legal retail price. Set each chosen product's price, purchase stock, then
-  stock only valid empty slots. A purchase must precede its corresponding stock
-  action; an accepted `make_offer` is the only way to add storage inventory.
-3. After initial stocking, use `end_day`, not repeated `wait` calls. There can
-  be no sales before midnight, and `end_day` reaches that settlement directly.
-4. After every midnight, call `get_machine` once. If machine cash is positive,
-  call `collect_cash` once. Call `get_inventory` before refilling any slot.
-5. Refill only after checking the returned state: for a selected slot, request
-  no more than `capacity - quantity`; for storage, request no more than the
-  returned product quantity. If storage is short, buy only the missing amount,
-  then make one stock request. Never retry a rejected `stock_items` request
-  unchanged. For `slot_full`, choose another valid slot or wait for sales; for
-  `insufficient_stock`, purchase stock first.
-6. Repeat from `end_day` while the environment is running. Stop immediately on
-  `ended` or `unavailable`, then delete the environment.
+| Action | Preconditions | On refusal/error, do this next |
+| --- | --- | --- |
+| `observe` | Have valid `env_id`; state is `running`. | If not running, stop and delete. |
+| `set_price` | Product exists; `unit_price_cents` within `[min_price_cents, max_price_cents]`. | Clamp to valid bounds and retry once with corrected value. |
+| `make_offer` | Supplier/product exist; quantity is positive and within cap; enough spendable cash for `quantity * unit_price_cents`. | If `insufficient_funds`, reduce quantity or choose cheaper product/quote. If countered, accept only if profitable. |
+| `stock_items` | Product price already set; slot exists; slot empty or same product; quantity fits slot and storage. | If `price_required`, call `set_price`. If `insufficient_stock`, buy missing quantity first. If `slot_full`, choose another valid slot or wait for sales. |
+| `unstock_items` | Slot exists and contains at least requested quantity. | Re-read machine state and lower quantity to available amount. |
+| `collect_cash` | Machine cash is positive. | Skip when zero; continue daily loop. |
+| `end_day` | Initial assortment is stocked or restock attempt completed. | If not ready, finish stocking first. |
 
 | Action | JSON body | Purpose |
 | --- | --- | --- |
@@ -150,14 +97,9 @@ assortment only from observed daily sales.
 | `wait` | `{}` | Advance simulated time by the configured wait duration; sales settle at midnight. |
 | `end_day` | `{}` | Advance to the next midnight, settle daily sales, and assess fees. |
 
-For example:
+Validation notes:
 
-```bash
-curl --fail-with-body -sS -X POST "${VENDING_API_URL:-http://127.0.0.1:8000}/env/ENV_ID/set_price" \
-  -H 'Content-Type: application/json' \
-  -d '{"product_id":"p01","unit_price_cents":150}'
-```
-
-All money fields are integer cents. Action payloads with unknown fields, invalid
-IDs, fractional values, or invalid quantities/prices return 422. Invalid JSON is
-400. Use the exact action name and fields shown above.
+1. Money is integer cents.
+2. Quantities are positive integers.
+3. Use only known IDs from `observe` or filtered `search_products`.
+4. Unknown fields or invalid ids/values return 422; invalid JSON returns 400.

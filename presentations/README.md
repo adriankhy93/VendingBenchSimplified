@@ -5,7 +5,7 @@
 - [Speaker notes](participant-speaker-notes.md): notes and implementation references.
 - [Organizer checklist](ORGANIZER-CHECKLIST.md): event policies to confirm before evaluation.
 
-The deck has 18 briefing slides and 3 API reference slides, designed for roughly
+The deck has 19 briefing slides and 3 API reference slides, designed for roughly
 20 minutes plus questions. It explains participant harness design, a pre-generated
 test environment, information boundaries, business rules, scoring, lifecycle handling,
 resource budgets, per-action/per-day token tracking, practice commands, and the run viewer.

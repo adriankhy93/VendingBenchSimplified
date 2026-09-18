@@ -355,6 +355,154 @@
     },
     {
       "section": "04 / HARNESS DESIGN",
+      "title": "The starter skill and graph guard keep the agent on the public path.",
+      "layout": "graph",
+      "graph_title": "Starting skill and guarded control flow",
+      "sidebar_title": "What participants should know",
+      "nodes": [
+        {
+          "id": "skill",
+          "label": "Starting skill\nvending-\nmachine",
+          "x": 18,
+          "y": 72,
+          "w": 142,
+          "h": 72,
+          "fill": "lime",
+          "stroke": "CAEFA1",
+          "color": "ink"
+        },
+        {
+          "id": "launcher",
+          "label": "run_pi_agent.sh\nloads one skill\nand read,bash",
+          "x": 184,
+          "y": 72,
+          "w": 156,
+          "h": 72,
+          "fill": "pale"
+        },
+        {
+          "id": "env",
+          "label": "POST /env\ncreate the episode",
+          "x": 364,
+          "y": 72,
+          "w": 128,
+          "h": 72,
+          "fill": "paper"
+        },
+        {
+          "id": "observe",
+          "label": "observe\nread public state",
+          "x": 516,
+          "y": 72,
+          "w": 120,
+          "h": 72,
+          "fill": "paper"
+        },
+        {
+          "id": "plan",
+          "label": "Plan one action\nfrom public data",
+          "x": 114,
+          "y": 172,
+          "w": 164,
+          "h": 72,
+          "fill": "paper"
+        },
+        {
+          "id": "check",
+          "label": "Validate IDs,\nprices, and cash",
+          "x": 308,
+          "y": 172,
+          "w": 160,
+          "h": 72,
+          "fill": "paper"
+        },
+        {
+          "id": "act",
+          "label": "Execute one API call\nvia bash/curl",
+          "x": 494,
+          "y": 172,
+          "w": 142,
+          "h": 72,
+          "fill": "paper"
+        },
+        {
+          "id": "guard",
+          "label": "Graph guard\nblocks bad order",
+          "x": 70,
+          "y": 194,
+          "w": 92,
+          "h": 68,
+          "fill": "E8F3ED",
+          "stroke": "5E8DCD",
+          "color": "teal",
+          "bold": true,
+          "size": 9.5
+        },
+        {
+          "id": "update",
+          "label": "Update logs\nand memory",
+          "x": 210,
+          "y": 202,
+          "w": 118,
+          "h": 60,
+          "fill": "paper",
+          "bold": true,
+          "size": 10.5
+        },
+        {
+          "id": "loop",
+          "label": "Check result\nand continue or stop",
+          "x": 356,
+          "y": 202,
+          "w": 176,
+          "h": 60,
+          "fill": "paper",
+          "bold": true,
+          "size": 10.5
+        },
+        {
+          "id": "stop",
+          "label": "Stop and cleanup\nwhen done",
+          "x": 550,
+          "y": 202,
+          "w": 136,
+          "h": 60,
+          "fill": "lime",
+          "stroke": "CAEFA1",
+          "color": "ink"
+          ,"size": 10.5
+        }
+      ],
+      "edges": [
+        {"from": "skill", "to": "launcher", "color": "teal"},
+        {"from": "launcher", "to": "env", "color": "teal"},
+        {"from": "env", "to": "observe", "color": "teal"},
+        {"from": "observe", "to": "plan", "color": "teal"},
+        {"from": "plan", "to": "check", "color": "line"},
+        {"from": "check", "to": "act", "color": "line"},
+        {"from": "act", "to": "update", "color": "line"},
+        {"from": "update", "to": "loop", "color": "line"},
+        {"from": "loop", "to": "plan", "color": "teal"},
+        {"from": "loop", "to": "stop", "color": "teal"},
+        {"from": "check", "to": "guard", "color": "blue"},
+        {"from": "guard", "to": "observe", "color": "blue"}
+      ],
+      "bullets": [
+        "The starting skill is the vending-machine skill.",
+        "The launcher uses one skill and only read,bash tools.",
+        "The guard enforces observe before act and set_price before stock_items.",
+        "SKILL.md explains the public graph; the extension enforces it at runtime."
+      ],
+      "takeaway": "Participants should see the harness as a guarded public-state loop, not a free-form planner.",
+      "notes": "The starting skill is the authoritative participant entry point. The launcher loads only the vending skill and shell tools, while the runtime graph guard blocks illegal ordering with explicit reasons. This slide gives the at-a-glance control flow; the skill documents the public contract, and the extension enforces the critical transitions. Keep the diagram aligned with the current launcher and guard files if either changes.",
+      "sources": [
+        "scripts/run_pi_agent.sh",
+        ".pi/skills/vending-machine/SKILL.md",
+        ".pi/extensions/vending-guard.js"
+      ]
+    },
+    {
+      "section": "04 / HARNESS DESIGN",
       "title": "Reliable execution protects your score.",
       "layout": "columns",
       "columns": [

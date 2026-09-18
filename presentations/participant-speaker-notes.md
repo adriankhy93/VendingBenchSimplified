@@ -1,6 +1,6 @@
 # Participant briefing — speaker notes
 
-21 slides: 18-slide core briefing plus 3 reference slides. Approximate speaking time: 20 minutes plus questions.
+22 slides total. Approximate speaking time: 20 minutes plus questions.
 
 ## 01. Build the harness. Run the business.
 
@@ -74,55 +74,61 @@ The starter provides an HTTP client, three scripted policies, bounded determinis
 
 Sources: src/harness/runner.py, src/harness/context.py, src/harness/agents.py
 
-## 13. Reliable execution protects your score.
+## 13. The starter skill and graph guard keep the agent on the public path.
+
+The starting skill is the authoritative participant entry point. The launcher loads only the vending skill and shell tools, while the runtime graph guard blocks illegal ordering with explicit reasons. This slide gives the at-a-glance control flow; the skill documents the public contract, and the extension enforces the critical transitions. Keep the diagram aligned with the current launcher and guard files if either changes.
+
+Sources: scripts/run_pi_agent.sh, .pi/skills/vending-machine/SKILL.md, .pi/extensions/vending-guard.js
+
+## 14. Reliable execution protects your score.
 
 An identical action and payload with the same idempotency key replays while the environment is running, without a second purchase or time advance. A changed payload conflicts. After termination, known actions are rejected even for a replay key. Unknown actions remain 404. For 409, distinguish idempotency conflicts from unavailable lifecycle state by inspecting the error code and status. The current client retries transport errors at most twice; creation has no idempotency contract and should not be blindly retried. Timeout/expiry can occur during inference, so do not assume a tool call remains eligible after a long model response.
 
 Sources: src/harness/client.py, src/harness/watchdog.py, src/vending/registry.py
 
-## 14. Plan for three separate resource limits.
+## 15. Plan for three separate resource limits.
 
 The starter uses a conservative UTF-8 byte-based input reservation plus overhead. It can stop early instead of knowingly exceeding the budget. The 1,000 ceiling counts policy calls, not necessarily environment actions; the initialization observe is separate. The 100,000 target and two-hour duration have not been calibrated through a paid full-duration model run. Do not present them as a measured performance guarantee or a finalized event rule. Full-run score and incomplete/truncated diagnostics should remain distinguishable.
 
 Sources: src/harness/runner.py: RunConfig and run, docs/calibration.md
 
-## 15. Measure tokens where decisions happen.
+## 16. Measure tokens where decisions happen.
 
 An action that crosses midnight retains its model cost on the day inference began. Invalid/empty responses, local memory writes, and failures still count toward token usage. A call which is never executed after a stop is logged as a no-action record so totals reconcile. The new action fields are start_sim_time and token_usage, with model_call and attribution. Usage records carry simulated decision time; summary.usage.tokens_by_day stores daily totals. Input token usage includes provider-reported cached input where available.
 
 Sources: src/harness/usage.py, src/harness/runner.py, src/viewer/tokens.py
 
-## 16. Start with one complete practice episode.
+## 17. Start with one complete practice episode.
 
 Run these commands from the repository root with a Python environment activated. Use python3 -m venv .venv first if appropriate. The test extra contains pytest, not the optional model SDK. Idle, listed, and negotiating policies need no model credentials. Teams implementing their own harness can reuse typed action schemas and the HTTP client. Private test definitions should remain with the evaluator; the saved-environment convenience command reads local definition files and is a development workflow, not an isolated grading boundary.
 
 Sources: README.md, scripts/run_environment.sh, scripts/view_runs.sh, pyproject.toml
 
-## 17. Review the run, then improve one decision.
+## 18. Review the run, then improve one decision.
 
 Use the dashboard to find one concrete failure mode: redundant observations, unfunded purchases, too little fee liquidity, slow decisions, or context growing faster than useful progress. The machine display is the last observed snapshot, not a reconstructed final inventory. Unfinished means no final summary was written and does not prove the process is still alive. Truncated scores can come from trusted pre-deletion snapshots and remain explicitly incomplete. A human may inspect practice configuration, but the test evaluator view is not an extra tool for participant policies.
 
 Sources: src/viewer/api.py, src/viewer/store.py, README.md
 
-## 18. Arrive with a reproducible harness.
+## 19. Arrive with a reproducible harness.
 
 This is a recommended readiness checklist, not a finalized submission contract. Organizers must announce the invocation protocol, lifecycle ownership, model allowance, runtime/token enforcement, test repeats, deadline, and treatment of truncated or infrastructure-failed runs. The supplied runner writes config.json, actions.jsonl, usage.jsonl, memory.md, and summary.json; participant harnesses should preserve equivalent auditability under the final contract. Close the core briefing by inviting questions about the environment interface and the harness boundary.
 
 Sources: plan.md section 9, src/harness/runner.py, README.md
 
-## 19. Create or receive an ID, act, then retrieve results.
+## 20. Create or receive an ID, act, then retrieve results.
 
 Known actions return 410 on ended environments and 409 on unavailable ones. Unknown IDs/actions are 404. Invalid JSON is 400; schema/identifier errors are 422. Domain refusals are ordinary 200 results. Status contains only state; it does not contain a score. Retrieve result before deletion. If the harness stops while running, a trusted service-side deletion snapshot supports truncated accounting; there is no post-delete result endpoint. Exactly who owns creation and deletion during the event must be specified in the organizer's test handoff.
 
 Sources: src/vending/api.py, src/vending/registry.py
 
-## 20. Use the exact schemas. Money is integer cents.
+## 21. Use the exact schemas. Money is integer cents.
 
 Refer to src/vending/models.py for the shared typed schemas. Quantities and offer prices must be positive integers, and the configured quantity cap applies. Selling prices must respect the product's public bounds. Boolean values are not valid integer amounts. A 200 response includes action_id, state, sim_time, elapsed_minutes, result, events, metrics, and termination_reason, with score on terminal accepted actions. There is no arbitrary Python method dispatch or hidden evaluator action available to the policy.
 
 Sources: src/vending/models.py, src/vending/engine.py: validate
 
-## 21. One validated request. One logged outcome.
+## 22. One validated request. One logged outcome.
 
 This is an invented interaction, not a revealed test quote. The response omits envelope fields and counteroffer terms for readability. To accept the counteroffer, submit a new make_offer action with a new idempotency key because its payload differs. Only retries of the identical original request reuse purchase-0001. Log the actual full response and preserve its incidental sales events.
 

@@ -25,7 +25,7 @@ workspace="$project_dir/.pi/workspace"
 mkdir -p "$workspace" "$PI_CODING_AGENT_SESSION_DIR"
 cd -- "$workspace"
 
-exec "$pi_bin" --approve --no-context-files --no-extensions --no-prompt-templates \
+exec "$pi_bin" --approve --no-context-files --no-extensions -e "$project_dir/.pi/extensions/vending-guard.js" --no-prompt-templates \
   --no-skills --skill "$project_dir/.pi/skills/vending-machine" \
   --tools read,bash --provider vending-vllm --model qwen3.5-2b --api-key local \
   --thinking off --name vending-machine \
