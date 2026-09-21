@@ -3,6 +3,9 @@
 Docker runs the environment and dashboard. vLLM and the agent run locally.
 Run commands from the repository root on the Docker host.
 
+For LLM participants and custom agent integrations, see the self-contained
+[agent guide](guide.md).
+
 ## 1. Start train or test
 
 Requires Docker Engine and Docker Compose v2 with `docker compose up --wait`.
