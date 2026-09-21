@@ -1,9 +1,0 @@
-{
-  "source": "2026-09-18T06-13-12-595Z_01a0b325-c712-7459-abd7-91f2d03fcd7d.jsonl",
-  "stock_refusals": [
-    {"slot_id":"r2s2","product_id":"p04","quantity":4,"actual_quantity":8,"capacity":10},
-    {"slot_id":"r2s3","product_id":"p08","quantity":6,"actual_quantity":6,"capacity":10},
-    {"slot_id":"r3s1","product_id":"p01","quantity":6,"actual_quantity":10,"capacity":10}
-  ],
-  "orange_juice": {"day":10,"product_id":"p04","supplier_id":"s08","machine_quantity":30,"storage_quantity":3,"requested_quantity":20,"unit_price_cents":247,"recent_sales":[4,5,8]}
-}
