@@ -9,3 +9,5 @@ runs/
 .pi/agent/models-store.json
 .pi/agent/sessions/
 .pi/workspace/
+presentations/
+notebooks/

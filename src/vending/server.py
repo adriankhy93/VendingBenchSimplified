@@ -35,7 +35,11 @@ def load_server_config(path):
         config = (SavedEnvironment if "format_version" in data else EnvironmentConfig).model_validate_json(raw)
         return config.scenario, config.seed
     except ValidationError as exc:
-        raise ValueError("configuration is not a valid vending scenario") from exc
+        details = "; ".join(
+            f"{'.'.join(map(str, error['loc'])) or 'scenario'}: {error['msg']}"
+            for error in exc.errors(include_input=False, include_url=False)
+        )
+        raise ValueError(f"configuration is not a valid vending scenario: {details}") from exc
 
 
 def app_from_config(path, *, artifact_dir="runs/service", environments_dir="environments"):

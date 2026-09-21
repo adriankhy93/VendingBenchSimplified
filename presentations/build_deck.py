@@ -8,6 +8,9 @@ from pathlib import Path
 import json
 import math
 import os
+import argparse
+import hashlib
+import tempfile
 
 from pptx import Presentation
 from pptx.util import Pt
@@ -68,6 +71,41 @@ def wrap(text, font, size, width):
     return lines
 
 
+def validate_spec(spec):
+    """Reject stale references and invalid diagrams before writing artifacts."""
+    for slide in spec["slides"]:
+        for source in slide["sources"]:
+            path = (ROOT.parent / source).resolve()
+            if not path.is_relative_to(ROOT.parent) or not path.is_file():
+                raise ValueError(f"Missing repository source: {source}")
+        if "column_widths" in slide:
+            widths = slide["column_widths"]
+            if len(widths) != len(slide["headers"]) or min(widths) <= 25 or sum(widths) != 856:
+                raise ValueError("Invalid table column widths")
+        if slide["layout"] != "graph":
+            continue
+        nodes = slide["nodes"]
+        ids = {n["id"] for n in nodes}
+        if len(ids) != len(nodes):
+            raise ValueError("Duplicate graph node ID")
+        for i, a in enumerate(nodes):
+            if (min(a["w"], a["h"]) <= 0 or a["x"] < 0 or a["y"] < 42
+                    or a["x"] + a["w"] > 612 or a["y"] + a["h"] > 222):
+                raise ValueError(f"Graph node outside diagram: {a['id']}")
+            for b in nodes[i + 1:]:
+                if (max(a["x"], b["x"]) < min(a["x"] + a["w"], b["x"] + b["w"])
+                        and max(a["y"], b["y"]) < min(a["y"] + a["h"], b["y"] + b["h"])):
+                    raise ValueError(f"Overlapping graph nodes: {a['id']}, {b['id']}")
+        for edge in slide["edges"]:
+            ends = [edge["from"], edge["to"]] if isinstance(edge, dict) else edge
+            if len(ends) != 2 or not set(ends) <= ids:
+                raise ValueError("Unknown graph edge endpoint")
+            if isinstance(edge, dict) and "points" in edge:
+                points = edge["points"]
+                if len(points) < 2 or any(not (0 <= x <= 612 and 42 <= y <= 222) for x, y in points):
+                    raise ValueError("Invalid graph edge route")
+
+
 class Deck:
     def __init__(self, output):
         self.prs = Presentation()
@@ -77,7 +115,7 @@ class Deck:
             "Participant briefing for a pre-generated test environment"
         )
         self.prs.core_properties.author = "Vending Bench"
-        self.pdf = canvas.Canvas(str(output.with_suffix(".pdf")), pagesize=(W, H))
+        self.pdf = canvas.Canvas(str(output.with_suffix(".pdf")), pagesize=(W, H), pageCompression=1, invariant=1)
         self.pdf.setTitle(self.prs.core_properties.title)
         self.pdf.setAuthor("Vending Bench")
         self.output = output
@@ -170,6 +208,7 @@ class Deck:
                 y=y,
                 w=w,
                 h=h,
+                used_height=used,
                 lines=len(lines),
                 size=size,
             )
@@ -335,8 +374,9 @@ class Deck:
         widths = (
             [220, 636]
             if count == 2
-            else ([165, 421, 270] if self.page == 11 else [195, 320, 341])
+            else [195, 320, 341]
         )
+        widths = spec.get("column_widths", widths)
         x = 52
         top = 167
         self.rect(x, top, 856, 34, "ink", radius=5)
@@ -436,7 +476,16 @@ class Deck:
                 y1 = ay
                 x2 = bx + bw / 2
                 y2 = by + bh
-            self.line(x1, y1, x2, y2, color, 1.8 if color != "line" else 1.2)
+            points = [(x1, y1), (x2, y2)]
+            if isinstance(edge, dict) and "points" in edge:
+                points = [(diagram_x + x, diagram_y + y) for x, y in edge["points"]]
+            for a, b in zip(points, points[1:]):
+                self.line(*a, *b, color, 1.5)
+            a, b = points[-2:]
+            angle = math.atan2(b[1] - a[1], b[0] - a[0])
+            for offset in (-0.5, 0.5):
+                self.line(b[0], b[1], b[0] - 6 * math.cos(angle + offset),
+                          b[1] - 6 * math.sin(angle + offset), color, 1.5)
 
         for node in spec["nodes"]:
             x = diagram_x + node["x"]
@@ -457,9 +506,14 @@ class Deck:
                 leading=node.get("leading", 1.08),
             )
 
+        if spec.get("graph_footer"):
+            self.text(spec["graph_footer"], diagram_x + 20, diagram_y + 235,
+                      diagram_w - 40, 20, 12, "teal", True)
         y = diagram_y + 52
         for item in spec.get("bullets", []):
             y += self.bullet(item, side_x + 14, y, 194, 13.5) + 11
+        if y - 11 > diagram_y + diagram_h - 12:
+            raise ValueError("Graph sidebar content overflow")
 
     def render(self, spec, index):
         self.start(spec, index)
@@ -584,42 +638,42 @@ class Deck:
     def save(self):
         self.prs.save(self.output.with_suffix(".pptx"))
         self.pdf.save()
-        (ROOT / "layout-check.json").write_text(
-            json.dumps(
-                dict(
-                    slides=self.page,
-                    text_boxes=len(self.text_boxes),
-                    bounds_checked=True,
-                ),
-                indent=2,
-            )
-            + "\n"
-        )
+
+
+def build(output_dir=ROOT):
+    source = (ROOT / "participant-briefing.json").read_bytes()
+    spec = json.loads(source)
+    validate_spec(spec)
+    notes = ["# Participant briefing — speaker notes", "",
+             f"{len(spec['slides'])} slides total. Approximate speaking time: 20 minutes plus questions.", ""]
+    for i, slide in enumerate(spec["slides"], 1):
+        notes += [f"## {i:02}. {slide['title'].replace(chr(10), ' ')}", "",
+                  slide["notes"], "", "Sources: " + ", ".join(slide["sources"]), ""]
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    # Publish only after every slide has rendered and validated successfully.
+    with tempfile.TemporaryDirectory(dir=output_dir) as staging:
+        target = Path(staging)
+        deck = Deck(target / "participant-briefing")
+        for i, slide in enumerate(spec["slides"], 1):
+            deck.render(slide, i)
+        deck.save()
+        (target / "participant-speaker-notes.md").write_text("\n".join(notes))
+        report = dict(slides=deck.page, text_boxes=len(deck.text_boxes), bounds_checked=True,
+                      graph_bounds_and_overlaps_checked=True, repository_sources_checked=True,
+                      source_sha256=hashlib.sha256(source).hexdigest())
+        (target / "layout-check.json").write_text(json.dumps(report, indent=2) + "\n")
+        for artifact in target.iterdir():
+            artifact.replace(output_dir / artifact.name)
+    return report
 
 
 def main():
-    spec = json.loads((ROOT / "participant-briefing.json").read_text())
-    notes = [
-        "# Participant briefing — speaker notes",
-        "",
-        f"{len(spec['slides'])} slides total. Approximate speaking time: 20 minutes plus questions.",
-        "",
-    ]
-    for i, slide in enumerate(spec["slides"], 1):
-        notes += [
-            f"## {i:02}. {slide['title'].replace(chr(10),' ')}",
-            "",
-            slide["notes"],
-            "",
-            "Sources: " + ", ".join(slide["sources"]),
-            "",
-        ]
-    (ROOT / "participant-speaker-notes.md").write_text("\n".join(notes))
-    deck = Deck(ROOT / "participant-briefing")
-    for i, slide in enumerate(spec["slides"], 1):
-        deck.render(slide, i)
-    deck.save()
-    print(f"Created {len(spec['slides'])} slides as editable PPTX and PDF")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output-dir", type=Path, default=ROOT)
+    args = parser.parse_args()
+    report = build(args.output_dir)
+    print(f"Created {report['slides']} slides as editable PPTX and PDF")
 
 
 if __name__ == "__main__":

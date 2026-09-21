@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import secrets
 from pathlib import Path
 from typing import Literal
 from pydantic import Field, model_validator
@@ -13,11 +14,12 @@ NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$"
 
 
 class EnvironmentConfig(StrictModel):
-    seed: int = Field(default=0, ge=0, le=2**63 - 1)
+    seed: int | None = Field(default=0, ge=0, le=2**63 - 1)
     scenario: Scenario = Field(default_factory=Scenario)
 
 
 class SavedEnvironment(EnvironmentConfig):
+    seed: int = Field(default=0, ge=0, le=2**63 - 1)
     format_version: Literal[1] = 1
     name: str = Field(pattern=NAME_PATTERN)
 
@@ -60,7 +62,8 @@ def generate(config_path, name, directory="environments", seed=None):
     if seed is not None:
         config = EnvironmentConfig.model_validate(config.model_dump() | dict(seed=seed))
     path = environment_path(directory, name)
-    quotes = build_quotes(config.scenario.products, config.seed, config.scenario)
+    resolved_seed = config.seed if config.seed is not None else secrets.randbits(63)
+    quotes = build_quotes(config.scenario.products, resolved_seed, config.scenario)
     resolved = tuple(
         PairQuote(
             supplier_id=q.supplier_id,
@@ -74,7 +77,7 @@ def generate(config_path, name, directory="environments", seed=None):
     scenario = Scenario.model_validate(
         config.scenario.model_dump() | dict(supplier_quotes=resolved)
     )
-    saved = SavedEnvironment(name=name, seed=config.seed, scenario=scenario)
+    saved = SavedEnvironment(name=name, seed=resolved_seed, scenario=scenario)
     path.parent.mkdir(parents=True, exist_ok=True)
     # Exclusive creation prevents accidental replacement of a reproducible experiment.
     with path.open("x") as stream:

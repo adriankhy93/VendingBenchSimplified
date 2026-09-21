@@ -133,3 +133,21 @@ def test_saved_quotes_do_not_prevent_periodic_reshuffle(tmp_path):
     restored.advance(30 * 1440)
     assert restored.quotes != initial
     assert restored.quotes == direct.quotes
+
+
+def test_random_generation_persists_resolved_seed(tmp_path, monkeypatch):
+    from vending.engine import Engine
+    from vending.environments import SavedEnvironment
+
+    monkeypatch.setattr("vending.environments.secrets.randbits", lambda bits: 12345)
+    config = EnvironmentConfig(seed=None)
+    source = tmp_path / "source.json"
+    source.write_text(config.model_dump_json())
+    generate(source, "random", tmp_path)
+    definition, _ = load_environment(tmp_path, "random")
+    assert definition.seed == 12345
+    assert Engine(config.scenario, 12345).quotes == Engine(
+        definition.scenario, definition.seed
+    ).quotes
+    with pytest.raises(ValueError):
+        SavedEnvironment.model_validate(definition.model_dump() | {"seed": None})

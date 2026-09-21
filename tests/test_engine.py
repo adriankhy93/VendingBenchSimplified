@@ -226,3 +226,13 @@ def test_purchase_crossing_reshuffle_keeps_original_agreed_cost():
     assert e.inventory()[quote.product_id]['acquisition_cost_cents'] == 2 * quote.minimum
     assert e.quotes[key].minimum != quote.minimum
     assert dict(type='supplier_reshuffle', day=2) in response['events']
+
+
+def test_benchmark_supports_optional_simulated_day_cap():
+    e = Engine(Scenario(max_days=365, daily_fee_cents=0), 7)
+    e.advance(364 * 1440)
+    assert e.state == 'running'
+    e.execute('end_day', {})
+    assert e.state == 'ended'
+    assert e.reason == 'simulated_day_cap'
+    assert e.minute == 365 * 1440

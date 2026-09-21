@@ -10,8 +10,8 @@
       },
       "models": [
         {
-          "id": "qwen3.5-2b",
-          "name": "Qwen3.5 2B through local vLLM",
+          "id": "qwen3.6-27b",
+          "name": "qwen3.6-27b through local vLLM",
           "reasoning": false,
           "input": [
             "text"

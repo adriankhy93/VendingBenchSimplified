@@ -1,10 +1,10 @@
 {
-  "seed": 0,
+  "seed": null,
   "scenario": {
     "scenario_id": "benchmark-v1",
     "version": "1.0-proposal",
     "runtime_seconds": 3600,
-    "max_days": null,
+    "max_days": 365,
     "starting_cash_cents": 50000,
     "daily_fee_cents": 200,
     "failure_limit": 10,

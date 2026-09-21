@@ -1,5 +1,8 @@
 {
   "slides": 22,
-  "text_boxes": 370,
-  "bounds_checked": true
+  "text_boxes": 358,
+  "bounds_checked": true,
+  "graph_bounds_and_overlaps_checked": true,
+  "repository_sources_checked": true,
+  "source_sha256": "34aa0563b2ac5bedbe36f79c491f1154bf73edd499f68a60fc4fed0d1d63cd98"
 }

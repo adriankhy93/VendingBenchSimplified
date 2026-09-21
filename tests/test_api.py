@@ -48,7 +48,7 @@ def test_validation(setup):
     assert c.post(path, content='{').status_code == 400
     assert c.post(path, content='x' * 65537).status_code == 413
     assert r.lookup(eid).engine.minute == 0
-    assert c.post('/env', json={'max_days':10}).status_code == 422
+    assert c.post('/env', json={'max_days':0}).status_code == 422
     assert c.post('/env', json={'seed':True}).status_code == 422
 
 def test_idempotency_and_concurrent_purchase(setup):

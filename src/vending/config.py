@@ -75,8 +75,6 @@ class Scenario(StrictModel):
 
     @model_validator(mode="after")
     def check(self):
-        if self.max_days is not None and self.scenario_id != "smoke-v1":
-            raise ValueError("day caps are only allowed in smoke scenarios")
         if not self.day_multipliers or any(not 0 <= x < float('inf') for x in self.day_multipliers):
             raise ValueError("finite nonnegative day multipliers required")
         if 1440 % self.tick_minutes:

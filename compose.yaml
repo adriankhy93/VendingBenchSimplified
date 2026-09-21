@@ -1,0 +1,38 @@
+name: vending-bench
+
+services:
+  environment:
+    build:
+      context: .
+      target: environment
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    command: ["bash", "start_env.sh", "configs/${VENDING_CONFIG:-environment.json}"]
+    environment:
+      VENDING_HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:${VENDING_API_PORT:-8000}:8000"
+    volumes:
+      - ./configs:/app/configs:ro
+      - ./runs:/app/runs
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/openapi.json', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  dashboard:
+    build:
+      context: .
+      target: dashboard
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    ports:
+      - "127.0.0.1:${VENDING_DASHBOARD_PORT:-8080}:8080"
+    volumes:
+      - ./runs:/app/runs:ro
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s

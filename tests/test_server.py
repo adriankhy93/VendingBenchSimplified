@@ -33,7 +33,7 @@ def test_server_accepts_direct_scenario_and_environment_config(tmp_path):
 def test_server_accepts_repository_environment_configuration():
     scenario, seed = load_server_config("configs/environment.json")
     assert scenario.scenario_id == "benchmark-v1"
-    assert seed == 0
+    assert seed is None
 
 
 def test_server_accepts_one_hour_environment_configuration(tmp_path):
@@ -86,3 +86,38 @@ def test_launch_config_cuts_off_after_one_real_hour(tmp_path):
         assert result['simulated_minutes'] == 5
         artifact = json.loads((tmp_path / f'{env_id}.json').read_text())
         assert artifact['summary'] == result
+
+
+@pytest.mark.parametrize('path', ['configs/environment.json', 'configs/environment-eval.json'])
+def test_repository_benchmark_configs_allow_day_caps(path):
+    scenario, _ = load_server_config(path)
+    assert scenario.scenario_id == 'benchmark-v1'
+    assert scenario.max_days == 365
+
+
+def test_config_error_explains_invalid_field(tmp_path):
+    path = tmp_path / 'invalid.json'
+    path.write_text(json.dumps({'runtime_seconds': 0}))
+    with pytest.raises(ValueError, match='runtime_seconds: Input should be greater than 0'):
+        load_server_config(path)
+
+
+@pytest.mark.parametrize(
+    "path, expected_seeds",
+    [("configs/environment.json", [101, 202]),
+     ("configs/environment-eval.json", [424242, 424242])],
+)
+def test_repository_seed_behavior(tmp_path, monkeypatch, path, expected_seeds):
+    seeds = iter([101, 202])
+    monkeypatch.setattr("vending.registry.secrets.randbits", lambda bits: next(seeds))
+    with TestClient(app_from_config(path, artifact_dir=tmp_path)) as client:
+        entries = []
+        for _ in range(2):
+            response = client.post("/env", json={})
+            assert response.status_code == 201
+            entries.append(client.app.state.registry.lookup(response.json()["env_id"]))
+        assert [entry.seed for entry in entries] == expected_seeds
+        assert entries[0].config == entries[1].config
+        assert (entries[0].engine.quotes == entries[1].engine.quotes) == (
+            expected_seeds[0] == expected_seeds[1]
+        )

@@ -10,13 +10,12 @@
       "takeaway": "Your system will operate a vending machine in an organizer-selected test environment.",
       "notes": "Welcome participants. The deliverable is an agent harness: the software that turns model decisions into reliable business actions. This briefing is based on the current implementation. Event-specific submission and model policies are still to be announced. Suggested presentation time: about 20 minutes plus questions; reference slides are optional.",
       "sources": [
-        "README.md",
-        "plan.md sections 1, 9"
+        "README.md"
       ]
     },
     {
       "section": "01 / THE ASSIGNMENT",
-      "title": "You design the harness. We fix the market.",
+      "title": "You design the harness. We define the environment.",
       "layout": "columns",
       "columns": [
         {
@@ -41,7 +40,6 @@
       "takeaway": "Optimize final net assets using the public interaction interface.",
       "notes": "A harness is more than a prompt. It includes orchestration, memory, provider integration, and error handling. Participants should not change the test definition or the simulation to improve a score. Model eligibility, compute allowances, and the submission interface will be announced by the organizers; do not imply they have already been finalized.",
       "sources": [
-        "src/harness/runner.py",
         "src/vending/environments.py"
       ]
     },
@@ -102,8 +100,7 @@
       "takeaway": "Treat the public API as the information boundary for the test.",
       "notes": "Observations expose the complete public catalog and initial listed quotes. Participants can discover costs by negotiating and demand by observing sales. Do not distribute the private test JSON, private service artifacts, or evaluator configuration to participant harnesses. The local MVP does not enforce this boundary through authentication or a sandbox; organizers must enforce it through deployment and file access. This operational point is expanded in the organizer checklist, not presented as an already implemented security guarantee.",
       "sources": [
-        "src/vending/engine.py: catalog and observe",
-        "plan.md sections 3, 9"
+        "src/vending/engine.py"
       ]
     },
     {
@@ -133,11 +130,12 @@
         "Storage is unlimited. Delivery is immediate. Products do not spoil.",
         "Collect machine cash to make it spendable."
       ],
-      "takeaway": "Reference defaults shown. Read the selected environment's public rules at startup.",
-      "notes": "All numeric settings here are current defaults, not guaranteed hidden-test settings. Catalog size, fees, machine shape, capacity, and action costs are configurable. The engine requires a positive selling price before stocking. There is no separate logistics pipeline. Purchases and inventory transfers are all-or-nothing.",
+      "takeaway": "Current practice configuration shown. Read the selected environment’s public rules at startup.",
+      "notes": "All numeric settings here are settings in configs/environment.json, not guaranteed hidden-test settings. Catalog size, fees, machine shape, capacity, and action costs are configurable. The engine requires a positive selling price before stocking. There is no separate logistics pipeline. Purchases and inventory transfers are all-or-nothing.",
       "sources": [
         "src/vending/config.py",
-        "src/vending/engine.py"
+        "src/vending/engine.py",
+        "configs/environment.json"
       ]
     },
     {
@@ -148,28 +146,28 @@
         {
           "title": "REAL TIME",
           "items": [
-            "Default: 2 hours from environment creation",
-            "Thinking and network latency use this budget",
-            "After expiry, actions are rejected",
-            "No automatic simulation of unplayed days"
+            "Practice config: 1 hour from creation",
+            "Thinking and network latency use this time",
+            "After expiry, business actions are rejected",
+            "Unplayed days are not simulated"
           ]
         },
         {
           "title": "SIMULATED TIME",
           "items": [
-            "Advances only through environment actions",
-            "Sales resolve in fixed intervals",
-            "Midnight triggers fees and debt accounting",
-            "end_day advances to the next midnight"
+            "Advances through business actions",
+            "Sales and fees settle at midnight",
+            "end_day advances to the next midnight",
+            "Practice config: a 365-day cap"
           ]
         }
       ],
-      "takeaway": "Benchmark runs have no simulated-day cap. Practice smoke runs do.",
-      "notes": "The default demand tick is five minutes. An action applies its immediate effects first, then advances time and resolves sales. Status/result reads do not advance business time. The separate harness watchdog is slightly longer than the environment runtime to allow cleanup. Do not confuse that grace period with extra business time. The environment may terminate earlier after repeated fee failures.",
+      "takeaway": "The first real-time, simulated-day, or fee-failure limit ends the episode.",
+      "notes": "The practice file configures runtime_seconds=3600 and max_days=365. These are configurable, and max_days can be null. Actions apply immediate effects before advancing time; sales settle only at midnight. Status and result reads do not advance business time. The service checks a monotonic deadline and expires idle environments in a background sweep. Late actions cannot extend business time. Repeated fee failures can end the episode earlier.",
       "sources": [
-        "src/vending/engine.py: execute and advance",
-        "src/vending/registry.py",
-        "src/harness/runner.py"
+        "configs/environment.json",
+        "src/vending/engine.py",
+        "src/vending/registry.py"
       ]
     },
     {
@@ -179,7 +177,7 @@
       "steps": [
         {
           "title": "Source",
-          "body": "Compare quotes and submit an offer."
+          "body": "Check existing stock, then buy any shortfall."
         },
         {
           "title": "Prepare",
@@ -191,13 +189,13 @@
         },
         {
           "title": "Reinvest",
-          "body": "Collect cash, pay fees, and replenish."
+          "body": "Collect cash, reserve fees, and replenish."
         }
       ],
       "takeaway": "At the default limit, 10 consecutive incomplete daily-fee payments end the episode.",
       "notes": "Accepted offers debit spendable cash and add a storage lot immediately. Counteroffers do neither. At midnight, available spendable cash pays existing fee arrears before the current fee; partial payment creates debt. A current fee not fully paid increments the failure streak. A fully paid current fee resets it. Uncollected machine cash cannot pay the fee automatically. Multiple slots raise availability but do not multiply demand.",
       "sources": [
-        "src/vending/engine.py: apply and advance"
+        "src/vending/engine.py"
       ]
     },
     {
@@ -231,11 +229,11 @@
           "No partial purchase"
         ]
       ],
-      "takeaway": "A suggestion for another product is optional; it never buys anything automatically.",
-      "notes": "Suppliers follow deterministic policies. Patient suppliers counter out-of-range offers, impatient suppliers can return no_reply, and pushy-patient suppliers may add an upsell. This deck does not disclose particular supplier types, pair minimums, or category assignments in the test. Supplier stock is unlimited, but the quantity cap and spendable cash limit purchases. A no_reply outcome is not a network timeout.",
+      "takeaway": "Supplier-product pairs reshuffle every 30 days in the practice configuration.",
+      "notes": "Suppliers follow deterministic policies. Patient suppliers counter out-of-range offers, impatient suppliers can return no_reply, and pushy-patient suppliers may add an upsell. This deck does not disclose particular supplier types, pair minimums, or category assignments in the test. Supplier stock is unlimited, but the quantity cap and spendable cash limit purchases. A no_reply outcome is not a network timeout. Winner, loser, and balanced pair assignments and their quotes reshuffle at days 31, 61, and so on under the default 30-day interval. Supplier behavior types stay fixed. Public supplier_reshuffle events invalidate cached quotes; the controller requires search_products before buying again. Existing inventory keeps its acquisition cost.",
       "sources": [
         "src/vending/suppliers.py",
-        "src/vending/engine.py: make_offer"
+        "src/vending/engine.py"
       ]
     },
     {
@@ -252,7 +250,7 @@
       "notes": "Demand is Poisson with a constant-elasticity price adjustment and a repeating day multiplier. The parameters are private. The diagram is qualitative, not a plot of hidden test demand. Product demand is independent with no substitution. Selling-price bounds are returned in the public catalog; the default range is 0.25 to 5 times reference, rounded to integer cents. Reference price is a comparison anchor, not a guarantee of the most profitable selling price.",
       "sources": [
         "src/vending/demand.py",
-        "src/vending/engine.py: bounds and advance"
+        "src/vending/engine.py"
       ]
     },
     {
@@ -271,13 +269,13 @@
       "notes": "All unsold units are valued at their actual acquisition cost, in storage and in machine slots. Purchasing exchanges equal cash and inventory value and does not create immediate profit. Raising retail prices does not revalue stock. Cash collection and inventory transfers preserve score. Selling recognizes revenue minus acquisition cost; completed-day fees reduce net assets. Fee debt is subtracted so failing to pay does not improve the score. The example is invented arithmetic, not a test result.",
       "sources": [
         "src/vending/scoring.py",
-        "src/vending/models.py: FIFO transfer",
+        "src/vending/models.py",
         "src/vending/engine.py"
       ]
     },
     {
       "section": "04 / HARNESS DESIGN",
-      "title": "Every tool call has an operating cost.",
+      "title": "Business actions advance simulated time.",
       "layout": "table",
       "headers": [
         "Default time",
@@ -311,194 +309,211 @@
           "Finish the current day"
         ]
       ],
-      "takeaway": "Business refusals consume action time. Malformed requests do not.",
+      "takeaway": "Service-level business refusals consume time. Controller blocks and schema errors do not.",
       "notes": "These costs are configurable; read observe.rules.durations. Public reads implemented as actions cost time, unlike HTTP status/result reads. Avoid repeatedly observing everything when a smaller state update is sufficient. Unknown actions and schema errors do not advance simulated time. End-day called at midnight advances a full day. All effects and incidental sales are returned in the common action envelope.",
       "sources": [
-        "src/vending/config.py: DURATIONS",
-        "src/vending/models.py: ACTIONS",
+        "src/vending/config.py",
+        "src/vending/models.py",
         "src/vending/engine.py"
+      ],
+      "column_widths": [
+        165,
+        421,
+        270
       ]
     },
     {
       "section": "04 / HARNESS DESIGN",
-      "title": "Build a loop that stays useful under pressure.",
-      "layout": "loop",
-      "steps": [
+      "title": "Replenish from stock. Adapt from evidence.",
+      "layout": "columns",
+      "columns": [
         {
-          "title": "Observe",
-          "body": "Initialize from public state."
+          "title": "STOCK AND CASH",
+          "items": [
+            "Start with up to four products, one slot each",
+            "Use three days of sales at the current price",
+            "Machine target: 1.5 days; reserve: 1 day",
+            "Subtract all stock; reserve debt + three fees"
+          ]
         },
         {
-          "title": "Decide",
-          "body": "Give the policy context and budgets."
-        },
-        {
-          "title": "Validate",
-          "body": "Check one allowed action and payload."
-        },
-        {
-          "title": "Execute",
-          "body": "Call the API; handle the outcome."
-        },
-        {
-          "title": "Remember",
-          "body": "Log, update state, and check limits."
+          "title": "PRICES AND CAPACITY",
+          "items": [
+            "Start at 150% of reference, above cost",
+            "Test one price at a time, within ±10%",
+            "Compare three fully stocked days",
+            "Two consecutive sellouts permit another slot"
+          ]
         }
       ],
-      "takeaway": "Preserve instructions, useful discoveries, and recent action/result pairs.",
-      "notes": "The starter provides an HTTP client, three scripted policies, bounded deterministic context summaries, isolated Markdown memory, a runner, and an optional model adapter. Teams can redesign the harness rather than inherit every starter choice. Keep at most one environment action in flight. If a provider returns multiple tool calls, process them serially and stop on termination. A local memory write uses model tokens but no simulated minutes. Remember the model is a policy component inside a controlled execution loop.",
+      "takeaway": "These are bounded starter heuristics. Profitability gains remain unproven.",
+      "notes": "Targets round up and machine targets cannot exceed allocated capacity. Before enough history exists, target one slot and no storage reserve. Purchases cover only the shortfall after subtracting both machine and storage stock. Sellout quantities are lower bounds on demand. Price trials require three comparable, fully stocked days; hold for three comparable days and keep only improved average daily gross profit, otherwise revert. Exclude stockout days and restart comparisons after a supplier reshuffle. Negotiation permits two offers per supplier/product/day: 90% of listed price, then the returned counteroffer or listed price after no reply, subject to affordability and retail margin. Decisions should state quantities, expected margin, and reason. These are controller policy defaults, not universal engine rules.",
       "sources": [
-        "src/harness/runner.py",
-        "src/harness/context.py",
-        "src/harness/agents.py"
+        ".pi/lib/vending-controller.mjs",
+        ".pi/skills/vending-machine/SKILL.md"
       ]
     },
     {
       "section": "04 / HARNESS DESIGN",
-      "title": "The starter skill and graph guard keep the agent on the public path.",
+      "title": "One tool. A controlled daily loop.",
       "layout": "graph",
-      "graph_title": "Starting skill and guarded control flow",
-      "sidebar_title": "What participants should know",
+      "graph_title": "Structured vending tool · *refresh when required",
+      "sidebar_title": "Enforced by the extension",
       "nodes": [
         {
-          "id": "skill",
-          "label": "Starting skill\nvending-\nmachine",
+          "id": "start",
+          "label": "Create /\nobserve",
           "x": 18,
-          "y": 72,
-          "w": 142,
-          "h": 72,
-          "fill": "lime",
-          "stroke": "CAEFA1",
-          "color": "ink"
-        },
-        {
-          "id": "launcher",
-          "label": "run_pi_agent.sh\nloads one skill\nand read,bash",
-          "x": 184,
-          "y": 72,
-          "w": 156,
-          "h": 72,
+          "y": 50,
+          "w": 132,
+          "h": 60,
+          "size": 12,
           "fill": "pale"
         },
         {
-          "id": "env",
-          "label": "POST /env\ncreate the episode",
-          "x": 364,
-          "y": 72,
-          "w": 128,
-          "h": 72,
-          "fill": "paper"
-        },
-        {
-          "id": "observe",
-          "label": "observe\nread public state",
-          "x": 516,
-          "y": 72,
-          "w": 120,
-          "h": 72,
-          "fill": "paper"
-        },
-        {
-          "id": "plan",
-          "label": "Plan one action\nfrom public data",
-          "x": 114,
-          "y": 172,
-          "w": 164,
-          "h": 72,
-          "fill": "paper"
-        },
-        {
-          "id": "check",
-          "label": "Validate IDs,\nprices, and cash",
-          "x": 308,
-          "y": 172,
-          "w": 160,
-          "h": 72,
-          "fill": "paper"
-        },
-        {
-          "id": "act",
-          "label": "Execute one API call\nvia bash/curl",
-          "x": 494,
-          "y": 172,
-          "w": 142,
-          "h": 72,
-          "fill": "paper"
-        },
-        {
-          "id": "guard",
-          "label": "Graph guard\nblocks bad order",
-          "x": 70,
-          "y": 194,
-          "w": 92,
-          "h": 68,
-          "fill": "E8F3ED",
-          "stroke": "5E8DCD",
-          "color": "teal",
-          "bold": true,
-          "size": 9.5
-        },
-        {
-          "id": "update",
-          "label": "Update logs\nand memory",
-          "x": 210,
-          "y": 202,
-          "w": 118,
+          "id": "select",
+          "label": "Select ≤4\nproducts",
+          "x": 166,
+          "y": 50,
+          "w": 132,
           "h": 60,
-          "fill": "paper",
-          "bold": true,
-          "size": 10.5
+          "size": 12,
+          "fill": "pale"
         },
         {
-          "id": "loop",
-          "label": "Check result\nand continue or stop",
-          "x": 356,
-          "y": 202,
-          "w": 176,
+          "id": "stock",
+          "label": "Buy /\nstock",
+          "x": 314,
+          "y": 50,
+          "w": 132,
           "h": 60,
-          "fill": "paper",
-          "bold": true,
-          "size": 10.5
+          "size": 12,
+          "fill": "paper"
         },
         {
-          "id": "stop",
-          "label": "Stop and cleanup\nwhen done",
-          "x": 550,
-          "y": 202,
-          "w": 136,
+          "id": "settle",
+          "label": "end_day",
+          "x": 462,
+          "y": 50,
+          "w": 132,
           "h": 60,
-          "fill": "lime",
-          "stroke": "CAEFA1",
-          "color": "ink"
-          ,"size": 10.5
+          "size": 12,
+          "fill": "paper"
+        },
+        {
+          "id": "cash",
+          "label": "Collect cash\nif positive",
+          "x": 462,
+          "y": 146,
+          "w": 132,
+          "h": 60,
+          "size": 12,
+          "fill": "paper"
+        },
+        {
+          "id": "snap",
+          "label": "Machine +\nstorage",
+          "x": 314,
+          "y": 146,
+          "w": 132,
+          "h": 60,
+          "size": 12,
+          "fill": "paper"
+        },
+        {
+          "id": "quotes",
+          "label": "Refresh\nquotes*",
+          "x": 166,
+          "y": 146,
+          "w": 132,
+          "h": 60,
+          "size": 12,
+          "fill": "paper"
+        },
+        {
+          "id": "price",
+          "label": "Review\nprices",
+          "x": 18,
+          "y": 146,
+          "w": 132,
+          "h": 60,
+          "size": 12,
+          "fill": "paper"
         }
       ],
       "edges": [
-        {"from": "skill", "to": "launcher", "color": "teal"},
-        {"from": "launcher", "to": "env", "color": "teal"},
-        {"from": "env", "to": "observe", "color": "teal"},
-        {"from": "observe", "to": "plan", "color": "teal"},
-        {"from": "plan", "to": "check", "color": "line"},
-        {"from": "check", "to": "act", "color": "line"},
-        {"from": "act", "to": "update", "color": "line"},
-        {"from": "update", "to": "loop", "color": "line"},
-        {"from": "loop", "to": "plan", "color": "teal"},
-        {"from": "loop", "to": "stop", "color": "teal"},
-        {"from": "check", "to": "guard", "color": "blue"},
-        {"from": "guard", "to": "observe", "color": "blue"}
+        {
+          "from": "start",
+          "to": "select",
+          "color": "teal"
+        },
+        {
+          "from": "select",
+          "to": "stock",
+          "color": "teal"
+        },
+        {
+          "from": "stock",
+          "to": "settle",
+          "color": "teal"
+        },
+        {
+          "from": "settle",
+          "to": "cash",
+          "color": "teal"
+        },
+        {
+          "from": "cash",
+          "to": "snap",
+          "color": "teal"
+        },
+        {
+          "from": "snap",
+          "to": "quotes",
+          "color": "teal"
+        },
+        {
+          "from": "quotes",
+          "to": "price",
+          "color": "teal"
+        },
+        {
+          "from": "price",
+          "to": "stock",
+          "points": [
+            [
+              84,
+              146
+            ],
+            [
+              84,
+              128
+            ],
+            [
+              380,
+              128
+            ],
+            [
+              380,
+              110
+            ]
+          ],
+          "color": "teal"
+        }
       ],
+      "graph_footer": "Any terminal state → get result → delete",
       "bullets": [
-        "The starting skill is the vending-machine skill.",
-        "The launcher uses one skill and only read,bash tools.",
-        "The guard enforces observe before act and set_price before stock_items.",
-        "SKILL.md explains the public graph; the extension enforces it at runtime."
+        "Skill injected into the prompt",
+        "Validate before HTTP",
+        "One request at a time",
+        "Persist and reconcile state"
       ],
-      "takeaway": "Participants should see the harness as a guarded public-state loop, not a free-form planner.",
-      "notes": "The starting skill is the authoritative participant entry point. The launcher loads only the vending skill and shell tools, while the runtime graph guard blocks illegal ordering with explicit reasons. This slide gives the at-a-glance control flow; the skill documents the public contract, and the extension enforces the critical transitions. Keep the diagram aligned with the current launcher and guard files if either changes.",
+      "takeaway": "A midnight crossing interrupts business actions for daily synchronization.",
+      "notes": "The extension owns the API URL and returned environment ID. The model has only the structured vending tool, with shell and file tools disabled. Create and observe are separate calls; initial selection and pricing precede replenishment. After settlement, collect positive machine cash, read machine and storage snapshots, refresh stale quotes, review pricing, then replenish or end the day. Crossed midnights and lifecycle changes are processed after every response. Rejected stocking does not advance the controller phase or alter stock. End-day remains possible when no valid affordable replenishment remains. On termination retrieve and record GET /result before deleting, without automatically creating another episode. Checkpoints are stored in Pi session entries; resume checks status and reconciles public snapshots.",
       "sources": [
-        "scripts/run_pi_agent.sh",
-        ".pi/skills/vending-machine/SKILL.md",
-        ".pi/extensions/vending-guard.js"
+        ".pi/extensions/vending-extension.js",
+        ".pi/lib/vending-controller.mjs",
+        "scripts/run_pi_agent.sh"
       ]
     },
     {
@@ -509,63 +524,64 @@
         {
           "title": "BEFORE AND DURING ACTIONS",
           "items": [
-            "Validate IDs, integer cents, and quantities",
-            "Execute actions serially",
-            "Retry transient failures with the SAME key",
-            "Bound model timeouts and poll status"
+            "Validate IDs, quantities, prices, and stock",
+            "Serialize requests; check each response",
+            "Retry once with the same request key",
+            "Check status and reconcile on resume"
           ]
         },
         {
           "title": "WHEN THE EPISODE STOPS",
           "items": [
-            "Treat 410 as ended; inspect 409 state",
-            "Retrieve the terminal summary",
-            "Preserve logs and the final public snapshot",
-            "Always attempt cleanup"
+            "Process terminal state from any response",
+            "Record GET /result before deletion",
+            "Preserve the Pi session and final result",
+            "Delete; never auto-create a replacement"
           ]
         }
       ],
       "takeaway": "Never retry an ambiguous purchase with a new Idempotency-Key.",
-      "notes": "An identical action and payload with the same idempotency key replays while the environment is running, without a second purchase or time advance. A changed payload conflicts. After termination, known actions are rejected even for a replay key. Unknown actions remain 404. For 409, distinguish idempotency conflicts from unavailable lifecycle state by inspecting the error code and status. The current client retries transport errors at most twice; creation has no idempotency contract and should not be blindly retried. Timeout/expiry can occur during inference, so do not assume a tool call remains eligible after a long model response.",
+      "notes": "The client retries an uncertain business request once with the same idempotency key (two attempts total), with a 15-second HTTP timeout. It never blindly repeats environment creation. Reusing a key with a changed payload conflicts. A terminal environment rejects later actions, including replays; retrieve its result instead. Persisted controller checkpoints support resume and snapshot reconciliation. Automatic follow-up continues normal completed turns while work remains; cancellation, provider errors, and repeated lack of progress can pause it. A resumed legacy trace without a checkpoint cannot safely reconstruct controller ownership.",
       "sources": [
-        "src/harness/client.py",
-        "src/harness/watchdog.py",
+        ".pi/lib/vending-client.mjs",
+        ".pi/extensions/vending-extension.js",
         "src/vending/registry.py"
       ]
     },
     {
       "section": "04 / HARNESS DESIGN",
-      "title": "Plan for three separate resource limits.",
+      "title": "Know which limits are actually enforced.",
       "layout": "budget",
       "stats": [
         {
-          "value": "7,200 s",
-          "label": "Default environment lifetime"
+          "value": "3,600 s",
+          "label": "Practice environment lifetime"
         },
         {
-          "value": "100,000",
-          "label": "Default input + output token budget"
+          "value": "365 days",
+          "label": "Practice simulated-day cap"
         },
         {
-          "value": "1,000",
-          "label": "Default policy-call ceiling"
+          "value": "Not set",
+          "label": "Pi total token / call budget"
         }
       ],
       "bullets": [
-        "Reserve input and maximum output tokens before a model call.",
-        "History, tool schemas, and summaries also cost tokens.",
-        "Stopping on a harness budget is a truncated run, not natural completion."
+        "Model usage is recorded, but no total token budget is enforced.",
+        "Context, tool schemas, and responses consume model tokens.",
+        "Official model and compute allowances remain organizer decisions."
       ],
-      "takeaway": "Current starter defaults. Official model, compute, and budget rules will be announced.",
-      "notes": "The starter uses a conservative UTF-8 byte-based input reservation plus overhead. It can stop early instead of knowingly exceeding the budget. The 1,000 ceiling counts policy calls, not necessarily environment actions; the initialization observe is separate. The 100,000 target and two-hour duration have not been calibrated through a paid full-duration model run. Do not present them as a measured performance guarantee or a finalized event rule. Full-run score and incomplete/truncated diagnostics should remain distinguishable.",
+      "takeaway": "Configured service limits and participant compute policies are separate.",
+      "notes": "These values describe configs/environment.json and the current Pi starter. There is no implemented 100,000-token budget or 1,000-policy-call ceiling. A model context window is not an episode token budget. max_days is configurable and can be null; real expiry or fee failure can end an episode earlier. Organizers must define, implement, and calibrate any additional compute policy before evaluation.",
       "sources": [
-        "src/harness/runner.py: RunConfig and run",
-        "docs/calibration.md"
+        "configs/environment.json",
+        "scripts/run_pi_agent.sh",
+        ".pi/extensions/vending-extension.js"
       ]
     },
     {
       "section": "05 / DEVELOPMENT AND REVIEW",
-      "title": "Measure tokens where decisions happen.",
+      "title": "Distinguish recorded usage from attribution.",
       "layout": "table",
       "headers": [
         "View",
@@ -574,36 +590,35 @@
       ],
       "rows": [
         [
+          "Pi session",
+          "Raw provider usage",
+          "Inspect model messages"
+        ],
+        [
+          "Viewer totals",
+          "Input / output tokens; calls",
+          "Compare usage with progress"
+        ],
+        [
           "Per action",
-          "Input, output, and total tokens",
-          "Full provider-call usage, including context"
+          "Unavailable for Pi traces",
+          "Do not interpret as zero"
         ],
         [
           "Per simulated day",
-          "Tokens and model-call count",
-          "Assigned to the model decision's day"
+          "Unavailable for Pi traces",
+          "Requires decision-time attribution"
         ],
         [
-          "Shared response",
-          "Linked model-call ID",
-          "Charge first action once; later actions add zero"
-        ],
-        [
-          "Timeout",
-          "Estimated reservation",
-          "Clearly labeled; not measured token usage"
-        ],
-        [
-          "Run summary",
-          "Totals + daily breakdown",
-          "Check cost against business progress"
+          "Controller state",
+          "Persistent session checkpoints",
+          "Recovery data, not token usage"
         ]
       ],
-      "takeaway": "Scripted actions use zero model tokens. Missing legacy attribution is unavailable.",
-      "notes": "An action that crosses midnight retains its model cost on the day inference began. Invalid/empty responses, local memory writes, and failures still count toward token usage. A call which is never executed after a stop is logged as a no-action record so totals reconcile. The new action fields are start_sim_time and token_usage, with model_call and attribution. Usage records carry simulated decision time; summary.usage.tokens_by_day stores daily totals. Input token usage includes provider-reported cached input where available.",
+      "takeaway": "Legacy run formats can carry finer attribution; current Pi traces do not.",
+      "notes": "Pi JSONL traces preserve provider usage in model messages. The viewer aggregates input and output tokens and model-call counts, but does not attribute Pi usage to individual business actions or simulated days. Some legacy artifacts include those fields. Missing attribution should remain unavailable, not silently zero. Do not claim that current Pi implements token reservations or token-budget termination.",
       "sources": [
-        "src/harness/usage.py",
-        "src/harness/runner.py",
+        "src/viewer/store.py",
         "src/viewer/tokens.py"
       ]
     },
@@ -611,19 +626,21 @@
       "section": "05 / DEVELOPMENT AND REVIEW",
       "title": "Start with one complete practice episode.",
       "layout": "code",
-      "code": "python3 -m pip install -e '.[test]'\n\n./scripts/run_environment.sh smoke --agent listed\n./scripts/run_environment.sh smoke --agent negotiating\n\n./scripts/view_runs.sh\n# Open http://localhost:8080",
+      "code": "# One-time setup\n./scripts/install_pi.sh\n# Run each command in a separate terminal:\nbash start_env.sh configs/environment.json\n./scripts/serve_qwen_vllm.sh\n./scripts/run_pi_agent.sh\n./scripts/view_runs.sh",
       "bullets": [
-        "Use the supplied smoke environment for local development.",
-        "The run script owns a temporary local service and cleans it up.",
-        "Use the baselines to verify your setup before replacing the policy."
+        "Start from the repository root.",
+        "The local model server needs installed weights and suitable hardware.",
+        "Open localhost:8080 to inspect the trace."
       ],
       "takeaway": "Practice scripts are not the private test-access or submission interface.",
-      "notes": "Run these commands from the repository root with a Python environment activated. Use python3 -m venv .venv first if appropriate. The test extra contains pytest, not the optional model SDK. Idle, listed, and negotiating policies need no model credentials. Teams implementing their own harness can reuse typed action schemas and the HTTP client. Private test definitions should remain with the evaluator; the saved-environment convenience command reads local definition files and is a development workflow, not an isolated grading boundary.",
+      "notes": "Prepare the Python environment with python3 -m pip install -e '.[test]' and install the Pi CLI with scripts/install_pi.sh. Start the service, model server, agent, and viewer in separate terminals in that order. The serving script requires locally downloaded weights and suitable GPU resources; inspect its configuration for your machine. For a shorter smoke episode, start the service with environments/smoke.json instead. The extension loads the skill and exposes only vending. Stop local service/model/viewer processes when finished. These commands are local development, not a private grading boundary.",
       "sources": [
         "README.md",
-        "scripts/run_environment.sh",
-        "scripts/view_runs.sh",
-        "pyproject.toml"
+        "start_env.sh",
+        "scripts/install_pi.sh",
+        "scripts/serve_qwen_vllm.sh",
+        "scripts/run_pi_agent.sh",
+        "scripts/view_runs.sh"
       ]
     },
     {
@@ -634,22 +651,22 @@
         {
           "title": "BUSINESS PERFORMANCE",
           "items": [
-            "Score, net profit, and liquidity",
-            "Sales by product and daily fees",
-            "Cash trajectory and stock snapshots"
+            "Live profit and terminal score",
+            "Daily purchases, sales, and cash collection",
+            "Machine and storage snapshots"
           ]
         },
         {
           "title": "HARNESS PERFORMANCE",
           "items": [
             "Action outcomes and exact payloads",
-            "Tokens by action and simulated day",
-            "Context, memory, usage, and stop reason"
+            "Aggregate model usage and calls",
+            "Controller state and stop reason"
           ]
         }
       ],
       "takeaway": "The viewer is read-only. Inspecting a recorded run consumes no simulated time.",
-      "notes": "Use the dashboard to find one concrete failure mode: redundant observations, unfunded purchases, too little fee liquidity, slow decisions, or context growing faster than useful progress. The machine display is the last observed snapshot, not a reconstructed final inventory. Unfinished means no final summary was written and does not prove the process is still alive. Truncated scores can come from trusted pre-deletion snapshots and remain explicitly incomplete. A human may inspect practice configuration, but the test evaluator view is not an extra tool for participant policies.",
+      "notes": "The viewer normalizes legacy curl records and structured vending results. Daily activity records purchases, costs, sales, and cash collection. Machine and storage displays are the last observed snapshots, with their timestamps, not guaranteed final inventory. Live profit requires enough trace history; terminal GET /result is authoritative. Unfinished means no final result was recorded and does not prove the process is alive. Pi per-action and per-day token attribution is unavailable. Use the viewer to diagnose redundant requests, fee liquidity, stockouts, and local blocks. Private evaluator data is not an additional policy tool.",
       "sources": [
         "src/viewer/api.py",
         "src/viewer/store.py",
@@ -668,16 +685,14 @@
         "A brief explanation of your design and observed trade-offs"
       ],
       "takeaway": "To be announced: submission packaging, deadline, allowed models, test handoff, and tie-breaks.",
-      "notes": "This is a recommended readiness checklist, not a finalized submission contract. Organizers must announce the invocation protocol, lifecycle ownership, model allowance, runtime/token enforcement, test repeats, deadline, and treatment of truncated or infrastructure-failed runs. The supplied runner writes config.json, actions.jsonl, usage.jsonl, memory.md, and summary.json; participant harnesses should preserve equivalent auditability under the final contract. Close the core briefing by inviting questions about the environment interface and the harness boundary.",
+      "notes": "This is a readiness checklist, not a finalized submission contract. Organizers must announce invocation, lifecycle ownership, model allowance, runtime/token policy, repeats, deadlines, and treatment of incomplete or infrastructure-failed runs. Preserve the Pi session JSONL, configuration, and policy version for auditability. Record terminal result retrieval and cleanup. Compare profitability across multiple seeds with equal wall-time budgets before claiming improvement.",
       "sources": [
-        "plan.md section 9",
-        "src/harness/runner.py",
         "README.md"
       ]
     },
     {
       "section": "REFERENCE / API LIFECYCLE",
-      "title": "Create or receive an ID, act, then retrieve results.",
+      "title": "REST lifecycle: create, act, retrieve, delete.",
       "layout": "table",
       "headers": [
         "Request",
@@ -712,10 +727,15 @@
         ]
       ],
       "takeaway": "The final accepted action can return 200 with state ended. Later actions are rejected.",
-      "notes": "Known actions return 410 on ended environments and 409 on unavailable ones. Unknown IDs/actions are 404. Invalid JSON is 400; schema/identifier errors are 422. Domain refusals are ordinary 200 results. Status contains only state; it does not contain a score. Retrieve result before deletion. If the harness stops while running, a trusted service-side deletion snapshot supports truncated accounting; there is no post-delete result endpoint. Exactly who owns creation and deletion during the event must be specified in the organizer's test handoff.",
+      "notes": "Known actions return 410 on ended environments and 409 on unavailable ones. Unknown IDs/actions are 404. Invalid JSON is 400; schema/identifier errors are 422. Domain refusals are ordinary 200 results. Status contains only state; it does not contain a score. Retrieve result before deletion. If the harness stops while running, a trusted service-side deletion snapshot supports truncated accounting; there is no post-delete result endpoint. Exactly who owns creation and deletion during the event must be specified in the organizer's test handoff. In the Pi starter, the extension owns this lifecycle and the environment ID; model calls use the vending tool rather than raw HTTP.",
       "sources": [
         "src/vending/api.py",
         "src/vending/registry.py"
+      ],
+      "column_widths": [
+        270,
+        240,
+        346
       ]
     },
     {
@@ -753,10 +773,10 @@
         ]
       ],
       "takeaway": "Reject extra fields, fractional quantities, invalid IDs, and out-of-bounds prices locally.",
-      "notes": "Refer to src/vending/models.py for the shared typed schemas. Quantities and offer prices must be positive integers, and the configured quantity cap applies. Selling prices must respect the product's public bounds. Boolean values are not valid integer amounts. A 200 response includes action_id, state, sim_time, elapsed_minutes, result, events, metrics, and termination_reason, with score on terminal accepted actions. There is no arbitrary Python method dispatch or hidden evaluator action available to the policy.",
+      "notes": "Refer to src/vending/models.py for the shared typed schemas. Quantities and offer prices must be positive integers, and the configured quantity cap applies. Selling prices must respect the product's public bounds. Boolean values are not valid integer amounts. A 200 response includes action_id, state, sim_time, elapsed_minutes, result, events, metrics, and termination_reason, with score on terminal accepted actions. There is no arbitrary Python method dispatch or hidden evaluator action available to the policy. This table describes REST schemas. The Pi tool exposes a constrained subset with an action and typed payload; consult its returned permitted actions. unstock_items and wait are not exposed by the starter controller.",
       "sources": [
         "src/vending/models.py",
-        "src/vending/engine.py: validate"
+        "src/vending/engine.py"
       ]
     },
     {
@@ -770,7 +790,7 @@
       "sources": [
         "src/vending/models.py",
         "src/vending/engine.py",
-        "src/harness/client.py"
+        ".pi/lib/vending-client.mjs"
       ]
     }
   ]

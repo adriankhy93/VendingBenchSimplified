@@ -4,7 +4,7 @@
     "scenario_id": "benchmark-v1",
     "version": "1.0-proposal-eval",
     "runtime_seconds": 7200,
-    "max_days": null,
+    "max_days": 365,
     "starting_cash_cents": 35000,
     "daily_fee_cents": 300,
     "failure_limit": 8,

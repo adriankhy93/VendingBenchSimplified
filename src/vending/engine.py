@@ -278,7 +278,8 @@ class Engine:
             if self.failures >= self.config.failure_limit:
                 self.state, self.reason = "ended", "missed_fees"
             elif self.config.max_days and day >= self.config.max_days:
-                self.state, self.reason = "ended", "smoke_day_cap"
+                self.state = "ended"
+                self.reason = "smoke_day_cap" if self.config.scenario_id == "smoke-v1" else "simulated_day_cap"
             if self.state == "ended":
                 break
             if day % self.config.supplier_reshuffle_days == 0:

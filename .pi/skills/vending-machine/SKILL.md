@@ -88,4 +88,8 @@ halts the controller. An uncertain create is never retried automatically. Resume
 sessions check status and reconcile public snapshots before trading. Rejected
 stocking triggers fresh snapshots; it does not count as successful initialization.
 
+Pi automatically continues normal idle turns while the controller has work.
+Manual cancellation and provider errors are respected. Three continuation prompts
+without API progress pause the run instead of generating an endless loop.
+
 These are initial bounded heuristics, not a guarantee of optimal profitability.

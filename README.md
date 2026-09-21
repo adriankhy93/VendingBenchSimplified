@@ -1,241 +1,214 @@
-# Simplified Vending Bench
+# Vending Bench Simplified
 
-A deterministic Python vending simulation, a local FastAPI service, and a Pi-based
-HTTP-only agent harness. The engine implements [plan.md](plan.md) with the proposed defaults
-versioned as `1.0-proposal`. Benchmark environments last two real hours with no
-simulated-day cap; smoke environments have an explicit cap.
+Docker runs the environment and dashboard. vLLM and the agent run locally.
+Run commands from the repository root on the Docker host.
 
-## View runs in the browser
+## 1. Start train or test
 
-```sh
-./scripts/view_runs.sh
+Requires Docker Engine and Docker Compose v2 with `docker compose up --wait`.
+No GPU or model files are needed for this step.
+
+```bash
+bash start.sh train 8000 9999
+# Or:
+bash start.sh test 8000 9999
 ```
 
-Open **http://localhost:8080**. The viewer runs independently of the simulation
-service and reads existing artifacts from `./runs`; no database or frontend build
-is required. It does not modify runs or advance simulated time.
+Both ports are required: `bash start.sh train|test ENV_PORT DASHBOARD_PORT`.
+The first port is for the environment API; the second is for the dashboard.
+With the examples above, open http://localhost:9999 for the dashboard and
+http://localhost:8000/docs for the API documentation. Choose two different free ports.
 
-- Search runs by agent, environment, seed, or ID, and filter by completion state.
-- Inspect score/profit, sales, resource use, interactive cash charts, and the last
-  observed machine inventory.
-- Expand action rows to see exact requests, outcomes, sales events, and input/output/total tokens.
-- Inspect token totals for each simulated day, including unfinished days and estimated usage.
-- Read effective configuration, model usage records, and the agent's notebook.
-- Enable auto-refresh to pick up new artifacts every five seconds. A run without
-  a final summary is labeled **Unfinished**, since its log alone cannot prove it
-  is still running.
+Training creates a fresh random seed for each episode with the same scenario
+parameters. Testing uses fixed seed `424242`; identical actions produce
+repeatable simulation behavior. Agent decisions can still vary.
 
-New runs record `start_sim_time` and `token_usage` in each action-log row, a
-simulated decision time in each usage-log row, and `usage.tokens_by_day` in the
-summary. Tokens are charged to the day the model made its decision, even if the
-action crosses midnight. A response requesting multiple actions is charged once
-to the first action; subsequent actions reference the same model call and show
-zero additional tokens. Failed/empty decisions and timeouts remain in the history;
-timeout reservations are labeled **estimated**. Input tokens include the full
-provider-reported context, not just the action's arguments.
+Switch modes only between episodes: switching recreates the environment service
+and discards active episodes. Completed results remain in `runs/`.
 
-Scripted actions use zero tokens. Older model runs without action/day attribution
-show **—** instead of invented counts. Their original run-level totals remain
-visible. The new fields are picked up automatically for newly recorded runs.
+## 2. Serve the LLM locally
 
-A truncated run's score is loaded from its trusted pre-deletion artifact when that
-file is available; otherwise the viewer shows the final score as unavailable.
-The URL includes the selected run ID, so individual runs can be bookmarked.
+Install vLLM in your local GPU Python environment and download your model.
+Edit **[configs/model.env](configs/model.env)**:
 
-Use `./scripts/view_runs.sh --port 8081 --runs-dir /path/to/runs` to choose another
-port or artifact directory. If trusted summaries live elsewhere, add
-`--service-dir /path/to/service`. After reinstalling the editable package, the
-same viewer is available as `vending-view`. The viewer binds to loopback by default;
-`--host 0.0.0.0` is available for container port forwarding.
-
-## Configure, generate, and choose an environment
-
-Edit [configs/environment.json](configs/environment.json), which explicitly lists all
-simulation settings, products, suppliers, and the seed.
-
-After installing the project dependencies, generate and run a named environment:
-
-```sh
-./scripts/generate_environment.sh configs/environment.json my-market
-./scripts/list_environments.sh
-./scripts/run_environment.sh my-market
+```bash
+model_path="/storage/models/Qwen3.6-27B"
+model_name="qwen3.6-27b"
+VLLM_GPU="0"
+VLLM_MAX_MODEL_LEN="262144"
+VLLM_GPU_MEMORY_UTILIZATION="0.8"
 ```
 
-Generation creates `environments/my-market.json`. It embeds the complete configuration,
-seed, and resolved supplier quotes, and refuses to overwrite an existing name. Change
-the input config and generate another name to create a different experiment. Generation
-does not start the clock. Each run starts a fresh episode from the selected definition.
+Then run in a separate terminal:
 
-`run_environment.sh` starts a loopback HTTP service on an available port using the
-selected saved environment (or config path), launches Pi, and stops the service when Pi
-exits. No separately launched simulation server is needed. The checked-in `default` and
-`smoke` environments are ready to select; for a quick run:
-
-```sh
-./scripts/run_environment.sh smoke
+```bash
+bash scripts/serve_qwen_vllm.sh
 ```
 
-For iterative harness tuning on fresh randomized markets, keep the same scenario
-parameters and regenerate with a random seed each time:
+The LLM serves at http://localhost:8001/v1. The script loads local model files
+offline and uses Qwen tool/reasoning parsers. Lower the context length if it does
+not fit in GPU memory. Other model families may need different parser options.
 
-```sh
-./scripts/generate_environment.sh configs/environment.json train-001 random
-./scripts/run_environment.sh train-001
+## 3. Run the agent locally
+
+Install Pi and its local Node runtime once:
+
+```bash
+bash scripts/install_pi.sh
 ```
 
-For a fair shared evaluation, use a harder fixed-seed definition so every user is
-scored on identical private quotes:
+After the environment and LLM are ready, run in another terminal:
 
-```sh
-./scripts/generate_environment.sh configs/environment-eval.json eval-fixed
-./scripts/run_environment.sh eval-fixed
+```bash
+bash scripts/run_pi_agent.sh --print
 ```
 
-`scripts/run_pi_agent.sh` options can be passed through `run_environment.sh` after the
-first argument. Scripts use `python3`; set `PYTHON_BIN` if your installed interpreter
-has another path.
+The agent uses the model name from `configs/model.env` and connects to the
+API at http://localhost:8000 by default. If you selected another environment
+port, set `VENDING_API_URL` as shown below. Run it again for another episode. After changing
+models, restart vLLM and launch a new agent. Run one agent at a time with the
+default LLM configuration.
 
-See [the configuration reference](docs/environments.md) for fields and validation rules.
+Sessions are saved in `runs/pi-sessions/`; environment results in `runs/service/`.
+The Docker dashboard reads both directories.
 
-## Run
+## 4. Logs and shutdown
 
-Python 3.12 or newer:
-
-```sh
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install -e '.[test]'
-bash start_env.sh configs/environment.json
+```bash
+docker compose ps
+docker compose logs -f environment
+docker compose down
 ```
 
-`start_env.sh` starts the REST service on `127.0.0.1:8000`. It accepts either a
-direct `Scenario` JSON file, or an environment configuration such as
-`configs/environment.json` containing `seed` and `scenario`.
-For the latter, an empty `POST /env` uses the configured seed; clients can still
-provide a different seed or allowed runtime override in the request body. Set
-`VENDING_HOST`, `VENDING_PORT`, `VENDING_ARTIFACT_DIR`, or
-`VENDING_ENVIRONMENTS_DIR` before the command to change server settings.
+Stop local vLLM or the agent with Ctrl-C in its terminal. Docker shutdown does
+not stop these local processes. Stopping the environment loses active episodes;
+it does not resume them later. Completed run files persist.
 
-In another terminal, activate the same environment and run from the repository root:
+To use another environment API port, pass it as the first port argument and
+point the local agent at the same address:
 
-```sh
-./scripts/install_pi.sh
-./scripts/serve_qwen_vllm.sh
-./scripts/run_pi_agent.sh
-python -m pytest -q
+```bash
+bash start.sh train 9000 9999
+VENDING_API_URL=http://127.0.0.1:9000 bash scripts/run_pi_agent.sh --print
 ```
 
-## Configuration and artifacts
+## 5. Environment REST API
 
-Set `VENDING_SCENARIO=/path/to/scenario.json` to change service defaults, or leave
-it unset for the benchmark scenario. `Scenario` validates tunable action durations,
-fees, capacity, retention, and weekly demand multipliers. Prices, quantities, money,
-and simulated minutes are integers. Each of 12 slots holds 10 units by default.
+Use the **environment API port** you passed to `start.sh` (8000 in these examples),
+not the dashboard or LLM port. Set `API_URL` below to match your chosen port.
+Interactive documentation: http://localhost:8000/docs. The action route is generic
+in OpenAPI; the table below lists all supported action names and request bodies.
 
-Pi sessions are saved in `runs/pi-sessions/` as JSONL traces. These traces include
-model messages, tool calls, tool results, and token usage.
+### Create, inspect, and delete an episode
 
-The service writes separate trusted artifacts under `runs/service/`, configurable
-through `VENDING_ARTIFACT_DIR`. `<env_id>.json` contains the terminal or pre-deletion
-score and private evaluator metadata. This is the accounting source for a run
-truncated while still running; the HTTP DELETE response remains empty. A remote
-runner records the artifact name for an evaluator to retrieve through local access.
-Private demand records in `<env_id>.private.jsonl` carry action IDs; records beyond
-`summary.committed_action_count` belong to a staged action discarded at expiry and
-must be excluded. Keep this directory out of the agent context.
+| Method | Path | JSON body | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/env` | `{}` | Create an episode using the server's train/test defaults; returns `201` and `{"env_id":"env_..."}`. |
+| `GET` | `/env/{env_id}/status` | None | Return `running`, `ended`, or `unavailable`; does not advance simulated time. |
+| `GET` | `/env/{env_id}/result` | None | Retrieve the terminal result; returns `409` while the episode is running. |
+| `DELETE` | `/env/{env_id}` | None | Delete the episode; returns `204`. Retrieve its result before deletion. |
 
-## HTTP contract
+```bash
+API_URL=http://127.0.0.1:8000
 
-| Request | Behavior |
+curl -sS -X POST "$API_URL/env" \
+  -H 'Content-Type: application/json' -d '{}'
+
+# Copy the env_id returned above:
+ENV_ID=env_REPLACE_WITH_RETURNED_ID
+
+curl -sS "$API_URL/env/$ENV_ID/status"
+```
+
+An empty creation body preserves randomized training or fixed-seed testing.
+Optional creation fields are:
+
+| Field | Accepted value |
 | --- | --- |
-| `POST /env` with no body or `{}` | `201 {"env_id":"env_…"}` |
-| `POST /env/{id}/{action}` | `200` action envelope; optional `Idempotency-Key` |
-| `GET /env/{id}/status` | `200 {"state":"running\|ended\|unavailable"}` (one literal state) |
-| `GET /env/{id}/result` | `409` while running; immutable public summary after termination |
-| `DELETE /env/{id}` | Idempotent `204`, empty body |
+| `seed` | Integer from 0 through 2^63−1. Overrides the server seed; 0 is deterministic. `null` is not accepted in this API request. |
+| `scenario_id` | `"benchmark-v1"` or `"smoke-v1"`. If supplied without `max_days`, benchmark disables the day cap and smoke sets it to 14. |
+| `runtime_seconds` | Positive integer; real-time episode lifetime, starting at creation. |
+| `max_days` | Positive integer, or `null` to disable the simulated-day cap. |
+| `environment_name` | Name of a saved definition available to the server in `environments/`. Cannot be combined with seed/scenario/runtime/day-cap overrides. |
+| `environment_sha256` | Optional 64-character lowercase hexadecimal file hash; requires `environment_name`. |
 
-Creation accepts evaluator-only `environment_name` (and optional `environment_sha256`)
-to select a saved definition. These cannot be mixed with scenario overrides. Otherwise,
-creation accepts `scenario_id`, `seed`, `runtime_seconds`, and
-`max_days` (only for `smoke-v1`). Action schemas and durations are in
-[the plan](plan.md#action-schemas-and-durations) and [models.py](src/vending/models.py).
-Typed envelope documentation is also served at `/docs`.
+For example, create a short deterministic episode for manual testing:
 
-Unknown IDs/actions return `404`; known actions after ending return `410`, or `409`
-when unavailable. Unknown actions still return `404` after ending. Malformed JSON
-returns `400`, invalid fields/identifiers `422`, and oversized bodies `413` (64 KiB).
-Business refusals return `200` and consume time. Errors use
-`{"error":{"code":"…","message":"…"}}`. A final accepted action returns `200`
-with its ended state and score. Retries with the same key and payload execute once;
-a conflicting payload returns `409`. Lifecycle checks precede replay.
-
-## Design and evaluation
-
-The default supplier pairs have exactly 20 winner, 20 loser, and 60 balanced costs, with seeded
-variation and fixed patient/impatient/pushy-patient policies. Pair categories and
-supplier prices reshuffle every 30 simulated days (configurable with
-`scenario.supplier_reshuffle_days`), starting on day 31. Supplier types and
-minimums are private. Offers deliver immediately; stocking and prices take effect
-before action time advances. Five-minute PCG64 demand streams are keyed by seed,
-product, and absolute tick. Demand is sampled even without stock. Multiple slots
-increase capacity without multiplying demand. There is no spoilage or substitution.
-
-Unsold stock retains FIFO acquisition costs. Score is spendable cash plus machine
-cash plus inventory cost, less fee debt. Midnight pays arrears before the current
-$2 fee; ten consecutive unpaid current fees end a run. Thinking/polling consumes
-no simulated time. Actions stage under a per-environment lock and commit only
-before the real deadline. Idle environments expire via a sweeper. Terminal engines
-release live inventory/RNG resources and retain summaries for one hour by default.
-
-[Measured smoke results](docs/calibration.md) cover nine real-HTTP episodes and the
-focused acceptance tests. Full two-hour model throughput and the approximately
-100,000-token target remain unmeasured. The current calibration is provisional.
-This MVP is for local/test deployment and does not implement authentication,
-persistence, distributed workers, or external logistics.
-
-## Local Qwen with vLLM
-
-The agent harness uses [Pi](https://pi.dev/) and a single
-[vending-machine skill](.pi/skills/vending-machine/SKILL.md). The skill is the
-simulation-specific instruction source, injected by the extension. Pi receives
-only the structured `vending` tool; shell and file tools are disabled. The tool
-owns the environment ID and enforces a daily controller using public API data.
-The model selects products and permitted price experiments; the controller bounds
-stocking, replenishment, fee reserves, and negotiation. Default policy constants
-are in `.pi/lib/vending-controller.mjs`.
-
-Each tool call makes at most one HTTP request and returns `controller.permitted_actions`.
-Quantities in those actions are maxima. Successful actions update the persisted
-controller state. An uncertain business request can be retried once with the same
-idempotency key; uncertain creation halts instead of creating another environment.
-On resume, the controller checks status and reconciles observations. Terminal
-results are fetched before deletion and remain in the session trace.
-
-The viewer reads both historical curl traces and new structured-tool traces.
-Start a fresh Pi session when upgrading from curl: old sessions have no controller
-checkpoint and halt on resume rather than silently creating another environment.
-Controller behavior is covered by `python3 -m pytest tests/test_pi_harness.py`;
-install local Node and Pi first to include the executable extension tests.
-
-Start the simulation service and local vLLM server in separate terminals:
-
-```sh
-bash start_env.sh configs/environment.json
-./scripts/serve_qwen_vllm.sh
+```bash
+curl -sS -X POST "$API_URL/env" \
+  -H 'Content-Type: application/json' \
+  -d '{"seed":42,"runtime_seconds":600,"max_days":2}'
 ```
 
-Then start an interactive Pi agent:
+This creates a separate episode; use its returned ID for subsequent calls.
 
-```sh
-./scripts/install_pi.sh  # once; downloads project-local Node and Pi
-./scripts/run_pi_agent.sh
+### All supported actions
+
+Every action uses **`POST /env/{env_id}/{action}`** with a JSON body.
+Use actual product, supplier, and slot IDs from `observe` or `search_products`.
+The examples below use IDs present in the repository's default configs.
+
+| Action | Example JSON body | Purpose |
+| --- | --- | --- |
+| `observe` | `{}` | Read catalog, supplier quotes, balances, storage, machine, purchases, and rules. |
+| `search_products` | `{}` | List all products, suppliers, and quotes. Optionally filter with `{"product_id":"p01"}`. |
+| `get_inventory` | `{}` | Read inventory held in storage. |
+| `get_balance` | `{}` | Read spendable cash, machine cash, and fee debt. |
+| `get_machine` | `{}` | Read slots, selling prices, and sales counts. |
+| `make_offer` | `{"supplier_id":"s01","product_id":"p01","quantity":10,"unit_price_cents":150}` | Offer to buy units into storage; inspect the outcome for acceptance, counteroffer, rejection, or insufficient funds. |
+| `set_price` | `{"product_id":"p01","unit_price_cents":150}` | Set the product's selling price within the catalog's price bounds. |
+| `stock_items` | `{"slot_id":"r1s1","product_id":"p01","quantity":5}` | Move units from storage into a slot. Set a selling price first; stock and capacity must be sufficient. |
+| `unstock_items` | `{"slot_id":"r1s1","quantity":1}` | Move units from a slot back into storage. |
+| `collect_cash` | `{}` | Transfer machine cash into spendable cash. |
+| `wait` | `{}` | Advance by the configured wait duration (300 simulated minutes in the supplied configs). No duration parameter is accepted. |
+| `end_day` | `{}` | Advance to the next simulated midnight. |
+
+Money is in integer cents. Quantities must be positive integers within the
+configured `quantity_cap` (1000 in the supplied configs). Unknown fields and
+unknown IDs are rejected. Valid request syntax does not guarantee a successful
+purchase or stock transfer: inspect `result` in the response.
+
+**All action calls advance simulated time**, including observations and rejected
+business operations. Durations are provided by `observe` under `result.rules.durations`.
+Successful HTTP responses include `state`, `action_id`, `sim_time`,
+`elapsed_minutes`, `result`, `events`, `metrics`, and `termination_reason`.
+
+Use this Bash helper with any action/body from the table:
+
+```bash
+api_action() {
+  curl -sS -X POST "$API_URL/env/$ENV_ID/$1" \
+    -H 'Content-Type: application/json' -d "$2"
+}
+
+api_action observe '{}'
+api_action search_products '{"product_id":"p01"}'
+api_action set_price '{"product_id":"p01","unit_price_cents":150}'
+api_action make_offer '{"supplier_id":"s01","product_id":"p01","quantity":10,"unit_price_cents":150}'
+# Continue only if the purchase succeeded and sufficient stock remains:
+api_action stock_items '{"slot_id":"r1s1","product_id":"p01","quantity":5}'
+api_action end_day '{}'
+api_action collect_cash '{}'
 ```
 
-`run_pi_agent.sh` uses the project-local Pi and Node installations in `.tools/`,
-the `vending-vllm/qwen3.5-2b` model in [.pi/agent/models.json](.pi/agent/models.json),
-and the loopback vLLM endpoint at `http://127.0.0.1:8001/v1`. Set
-`VENDING_API_URL` when the simulation service uses a different URL. Pi's session
-history is its model trace; use `/export` or its session JSONL for inspection.
+For retryable action requests, supply an `Idempotency-Key` header (1–200
+characters). While the episode is running, repeating the same key, action, and
+payload returns the cached response without applying the action again. Reusing
+a key for a different action or payload returns `409`.
 
-Pi sessions are saved in `runs/pi-sessions/`, which is ignored by Git. Each JSONL
-session records model messages, tool calls, tool results, and token usage.
+```bash
+curl -sS -X POST "$API_URL/env/$ENV_ID/collect_cash" \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: collect-001' -d '{}'
+
+# After the episode ends:
+curl -sS "$API_URL/env/$ENV_ID/result"
+curl -sS -X DELETE "$API_URL/env/$ENV_ID"
+```
+
+Fetch results before the configured retention period expires. Deleting a running
+episode stops it early; later API requests cannot retrieve it. Typical error
+statuses are `404` for an unknown environment/action, `409` for a state or
+idempotency conflict, `410` for actions on an ended episode, and `422` for invalid
+fields, IDs, quantities, or prices. Error bodies have the form
+`{"error":{"code":"...","message":"..."}}`.
