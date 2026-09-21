@@ -11,3 +11,4 @@ runs/
 .pi/workspace/
 presentations/
 notebooks/
+tests/

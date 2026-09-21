@@ -5,7 +5,6 @@ COPY pyproject.toml ./
 COPY src ./src
 RUN pip install --no-cache-dir .
 COPY configs ./configs
-COPY environments ./environments
 COPY start_env.sh ./
 COPY scripts ./scripts
 RUN mkdir -p /app/runs

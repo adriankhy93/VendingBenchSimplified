@@ -129,7 +129,7 @@ Optional creation fields are:
 | `scenario_id` | `"benchmark-v1"` or `"smoke-v1"`. If supplied without `max_days`, benchmark disables the day cap and smoke sets it to 14. |
 | `runtime_seconds` | Positive integer; real-time episode lifetime, starting at creation. |
 | `max_days` | Positive integer, or `null` to disable the simulated-day cap. |
-| `environment_name` | Name of a saved definition available to the server in `environments/`. Cannot be combined with seed/scenario/runtime/day-cap overrides. |
+| `environment_name` | Advanced: name of a custom saved definition you supply to the server. No saved presets are included. Cannot be combined with seed/scenario/runtime/day-cap overrides. |
 | `environment_sha256` | Optional 64-character lowercase hexadecimal file hash; requires `environment_name`. |
 
 For example, create a short deterministic episode for manual testing:
